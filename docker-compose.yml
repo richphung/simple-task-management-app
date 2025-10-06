@@ -1,0 +1,46 @@
+version: '3.8'
+
+services:
+  task-management-api:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    container_name: task-management-api
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - JAVA_OPTS=-Xmx512m -Xms256m
+    volumes:
+      - ./logs:/app/logs
+      - ./data:/app/data
+    networks:
+      - task-management-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Optional: Add a database service for production-like testing
+  # h2-database:
+  #   image: oscarfonts/h2
+  #   container_name: h2-database
+  #   ports:
+  #     - "8082:8082"
+  #   environment:
+  #     - H2_OPTIONS=-web -webAllowOthers -tcp -tcpAllowOthers -browser
+  #   networks:
+  #     - task-management-network
+
+networks:
+  task-management-network:
+    driver: bridge
+
+volumes:
+  logs:
+  data:
+
+

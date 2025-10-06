@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<FindBugsFilter>
+    <!-- Exclude REC_CATCH_EXCEPTION warnings for REST controllers -->
+    <!-- These are intentional generic exception handlers for proper error handling -->
+    <Match>
+        <Bug pattern="REC_CATCH_EXCEPTION" />
+        <Class name="com.example.taskmanagement.controller.ExportController" />
+    </Match>
+    <Match>
+        <Bug pattern="REC_CATCH_EXCEPTION" />
+        <Class name="com.example.taskmanagement.controller.SuggestionsController" />
+    </Match>
+</FindBugsFilter>
