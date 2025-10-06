@@ -10,6 +10,10 @@ COPY pom.xml .
 # Download dependencies (this layer will be cached if pom.xml doesn't change)
 RUN mvn dependency:go-offline -B
 
+# Copy configuration files
+COPY checkstyle.xml .
+COPY spotbugs-exclude.xml .
+
 # Copy source code
 COPY src ./src
 
