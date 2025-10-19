@@ -78,9 +78,10 @@ class TaskDuplicationControllerTest {
         mockMvc.perform(post("/api/tasks/{id}/duplicate", taskId)
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.id").value(duplicatedTask.getId()))
-                .andExpect(jsonPath("$.title").value("Original Task (Copy)"))
-                .andExpect(jsonPath("$.status").value("TODO"));
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.id").value(duplicatedTask.getId()))
+                .andExpect(jsonPath("$.data.title").value("Original Task (Copy)"))
+                .andExpect(jsonPath("$.data.status").value("TODO"));
         
         verify(taskService).duplicateTask(taskId);
     }
@@ -152,8 +153,9 @@ class TaskDuplicationControllerTest {
         mockMvc.perform(post("/api/tasks/{id}/duplicate", taskId)
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.status").value("TODO"))
-                .andExpect(jsonPath("$.completedAt").doesNotExist());
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.status").value("TODO"))
+                .andExpect(jsonPath("$.data.completedAt").doesNotExist());
         
         verify(taskService).duplicateTask(taskId);
     }
@@ -173,7 +175,8 @@ class TaskDuplicationControllerTest {
         mockMvc.perform(post("/api/tasks/{id}/duplicate", taskId)
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.status").value("TODO"));
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.status").value("TODO"));
         
         verify(taskService).duplicateTask(taskId);
     }
@@ -192,7 +195,8 @@ class TaskDuplicationControllerTest {
         mockMvc.perform(post("/api/tasks/{id}/duplicate", taskId)
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.priority").value("HIGH"));
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.priority").value("HIGH"));
         
         verify(taskService).duplicateTask(taskId);
     }
@@ -211,7 +215,8 @@ class TaskDuplicationControllerTest {
         mockMvc.perform(post("/api/tasks/{id}/duplicate", taskId)
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.notes").value("Important notes to preserve"));
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.notes").value("Important notes to preserve"));
         
         verify(taskService).duplicateTask(taskId);
     }
@@ -231,7 +236,8 @@ class TaskDuplicationControllerTest {
         mockMvc.perform(post("/api/tasks/{id}/duplicate", taskId)
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.dueDate").value(dueDate.toString()));
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.dueDate").value(dueDate.toString()));
         
         verify(taskService).duplicateTask(taskId);
     }

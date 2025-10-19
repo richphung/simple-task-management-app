@@ -1,11 +1,10 @@
 package com.example.taskmanagement.service;
 
+import com.example.taskmanagement.constants.TaskConstants;
 import com.example.taskmanagement.entity.Task;
 import com.example.taskmanagement.enums.Priority;
 import com.example.taskmanagement.enums.Status;
 import com.example.taskmanagement.repository.TaskRepository;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
@@ -20,12 +19,14 @@ import java.util.stream.Collectors;
  * Uses machine learning-like algorithms to suggest task properties.
  */
 @Service
-public class SmartSuggestionService {
+public class SmartSuggestionService extends BaseService {
 
-    private static final Logger logger = LoggerFactory.getLogger(SmartSuggestionService.class);
+    private final TaskRepository taskRepository;
 
     @Autowired
-    private TaskRepository taskRepository;
+    public SmartSuggestionService(TaskRepository taskRepository) {
+        this.taskRepository = taskRepository;
+    }
 
     /**
      * Generate smart suggestions for a new task based on title.
@@ -33,13 +34,11 @@ public class SmartSuggestionService {
      * @param title the task title
      * @return list of task suggestions
      */
-    @Cacheable(value = "suggestions-cache", key = "#title")
+    @Cacheable(value = TaskConstants.CACHE_SUGGESTIONS, key = "#title")
     public List<TaskSuggestion> generateSuggestions(String title) {
-        try {
-            if (logger.isDebugEnabled()) {
-                logger.debug("Generating suggestions for title: {}", title);
-            }
+        logDebug("Generating suggestions for title: {}", title);
 
+        try {
             // Handle null or empty title
             if (title == null || title.trim().isEmpty()) {
                 return getDefaultSuggestions();
@@ -52,17 +51,24 @@ public class SmartSuggestionService {
             
             if (!similarTasks.isEmpty()) {
                 for (Task task : similarTasks) {
-                    TaskSuggestion suggestion = new TaskSuggestion();
-                    suggestion.setSuggestedTitle(task.getTitle());
-                    suggestion.setSuggestedDescription(task.getDescription());
-                    suggestion.setSuggestedPriority(task.getPriority());
-                    suggestion.setSuggestedStatus(task.getStatus());
-                    suggestion.setSuggestedDueDate(task.getDueDate());
-                    suggestion.setConfidenceScore(calculateConfidence(similarTasks, title));
-                    suggestions.add(suggestion);
+                    try {
+                        TaskSuggestion suggestion = new TaskSuggestion();
+                        suggestion.setSuggestedTitle(task.getTitle());
+                        suggestion.setSuggestedDescription(task.getDescription());
+                        suggestion.setSuggestedPriority(task.getPriority());
+                        suggestion.setSuggestedStatus(task.getStatus());
+                        suggestion.setSuggestedDueDate(task.getDueDate());
+                        suggestion.setConfidenceScore(calculateConfidence(similarTasks, title));
+                        suggestions.add(suggestion);
+                    } catch (Exception e) {
+                        logError("Error processing similar task: " + e.getMessage(), e);
+                        // Skip this task and continue
+                    }
                 }
-            } else {
-                // No similar tasks found, provide default suggestions
+            }
+            
+            // If no suggestions were added, provide default suggestions
+            if (suggestions.isEmpty()) {
                 suggestions.add(createDefaultSuggestion("Review Code", "Review pull requests for quality", Priority.HIGH, Status.TODO, LocalDate.now().plusDays(1)));
                 suggestions.add(createDefaultSuggestion("Plan Sprint", "Outline tasks for the next sprint", Priority.MEDIUM, Status.TODO, LocalDate.now().plusDays(7)));
             }
@@ -70,13 +76,13 @@ public class SmartSuggestionService {
             return suggestions;
             
         } catch (Exception e) {
-            logger.error("Failed to generate suggestions for title: {}", title, e);
+            logError("Failed to generate suggestions for title: " + title, e);
             return getDefaultSuggestions();
         }
     }
 
     /**
-     * Find tasks similar to the given title.
+     * Find tasks similar to the given title using optimized repository method.
      *
      * @param title the title to find similar tasks for
      * @return list of similar tasks
@@ -87,15 +93,32 @@ public class SmartSuggestionService {
             return Collections.emptyList();
         }
         
-        // Simple similarity based on common words
+        // Use optimized database-level search first
+        List<Task> dbSimilarTasks = taskRepository.findSimilarTasksByTitle(title);
+        
+        if (dbSimilarTasks.size() >= 5) {
+            return dbSimilarTasks.stream().limit(5).collect(Collectors.toList());
+        }
+        
+        // Fallback to in-memory similarity calculation for better results
         String[] titleWords = title.toLowerCase(Locale.ENGLISH).split("\\s+");
         
         return taskRepository.findAll().stream()
-            .filter(task -> task.getTitle() != null && calculateSimilarity(titleWords, task.getTitle().toLowerCase(Locale.ENGLISH).split("\\s+")) > 0.3)
-            .sorted((t1, t2) -> Double.compare(
-                calculateSimilarity(titleWords, t2.getTitle().toLowerCase(Locale.ENGLISH).split("\\s+")),
-                calculateSimilarity(titleWords, t1.getTitle().toLowerCase(Locale.ENGLISH).split("\\s+"))
-            ))
+            .filter(task -> task != null && task.getTitle() != null && !task.getTitle().trim().isEmpty())
+            .filter(task -> calculateSimilarity(titleWords, task.getTitle().toLowerCase(Locale.ENGLISH).split("\\s+")) > 0.3)
+            .sorted((t1, t2) -> {
+                // Safe null checks in comparator
+                if (t1 == null || t1.getTitle() == null) {
+                    return 1;
+                }
+                if (t2 == null || t2.getTitle() == null) {
+                    return -1;
+                }
+                return Double.compare(
+                    calculateSimilarity(titleWords, t2.getTitle().toLowerCase(Locale.ENGLISH).split("\\s+")),
+                    calculateSimilarity(titleWords, t1.getTitle().toLowerCase(Locale.ENGLISH).split("\\s+"))
+                );
+            })
             .limit(5)
             .collect(Collectors.toList());
     }

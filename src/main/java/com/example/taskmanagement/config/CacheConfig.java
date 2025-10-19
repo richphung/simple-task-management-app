@@ -1,5 +1,6 @@
 package com.example.taskmanagement.config;
 
+import com.example.taskmanagement.constants.TaskConstants;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.EnableCaching;
@@ -8,6 +9,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
 
+import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -36,8 +38,13 @@ public class CacheConfig {
                 .recordStats()                        // Enable statistics
         );
         
-        // Set cache names
-        cacheManager.setCacheNames(java.util.Arrays.asList("tasks", "taskStats", "suggestions-cache"));
+        // Set cache names using constants
+        cacheManager.setCacheNames(Arrays.asList(
+            TaskConstants.CACHE_TASKS,
+            TaskConstants.CACHE_TASK_BY_ID,
+            TaskConstants.CACHE_TASK_ANALYTICS,
+            TaskConstants.CACHE_SUGGESTIONS
+        ));
         
         return cacheManager;
     }
@@ -58,7 +65,11 @@ public class CacheConfig {
                 .recordStats()
         );
         
-        cacheManager.setCacheNames(java.util.Arrays.asList("task-analytics", "productivity-metrics", "trends"));
+        cacheManager.setCacheNames(Arrays.asList(
+            TaskConstants.CACHE_TASK_ANALYTICS,
+            "productivity-metrics", 
+            "trends"
+        ));
         
         return cacheManager;
     }
@@ -80,7 +91,11 @@ public class CacheConfig {
                 .recordStats()
         );
         
-        cacheManager.setCacheNames(java.util.Arrays.asList("search-results", "filtered-tasks", "suggestions"));
+        cacheManager.setCacheNames(Arrays.asList(
+            "search-results", 
+            "filtered-tasks", 
+            TaskConstants.CACHE_SUGGESTIONS
+        ));
         
         return cacheManager;
     }

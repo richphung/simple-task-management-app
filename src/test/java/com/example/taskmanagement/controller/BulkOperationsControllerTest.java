@@ -1,5 +1,6 @@
 package com.example.taskmanagement.controller;
 
+import com.example.taskmanagement.dto.ApiResponse;
 import com.example.taskmanagement.dto.TaskRequest;
 import com.example.taskmanagement.dto.TaskResponse;
 import com.example.taskmanagement.enums.Priority;
@@ -85,14 +86,16 @@ class BulkOperationsControllerTest {
         when(taskService.bulkCreateTasks(testRequests)).thenReturn(testTasks);
 
         // When
-        ResponseEntity<List<TaskResponse>> response = bulkOperationsController.bulkCreateTasks(testRequests);
+        ResponseEntity<ApiResponse<List<TaskResponse>>> response = bulkOperationsController.bulkCreateTasks(testRequests);
 
         // Then
         assertNotNull(response);
         assertEquals(HttpStatus.CREATED, response.getStatusCode());
         assertNotNull(response.getBody());
-        assertEquals(2, response.getBody().size());
-        assertEquals(testTasks, response.getBody());
+        assertTrue(response.getBody().isSuccess());
+        assertNotNull(response.getBody().getData());
+        assertEquals(2, response.getBody().getData().size());
+        assertEquals(testTasks, response.getBody().getData());
         
         verify(taskService).bulkCreateTasks(testRequests);
     }
@@ -103,13 +106,15 @@ class BulkOperationsControllerTest {
         List<TaskRequest> emptyRequests = Arrays.asList();
 
         // When
-        ResponseEntity<List<TaskResponse>> response = bulkOperationsController.bulkCreateTasks(emptyRequests);
+        ResponseEntity<ApiResponse<List<TaskResponse>>> response = bulkOperationsController.bulkCreateTasks(emptyRequests);
 
         // Then
         assertNotNull(response);
         assertEquals(HttpStatus.CREATED, response.getStatusCode());
         assertNotNull(response.getBody());
-        assertTrue(response.getBody().isEmpty());
+        assertTrue(response.getBody().isSuccess());
+        assertNotNull(response.getBody().getData());
+        assertTrue(response.getBody().getData().isEmpty());
         
         verify(taskService).bulkCreateTasks(Collections.emptyList());
     }
@@ -120,15 +125,18 @@ class BulkOperationsControllerTest {
         List<TaskRequest> nullRequests = null;
 
         // When
-        ResponseEntity<List<TaskResponse>> response = bulkOperationsController.bulkCreateTasks(nullRequests);
+        ResponseEntity<ApiResponse<List<TaskResponse>>> response = bulkOperationsController.bulkCreateTasks(nullRequests);
 
         // Then
         assertNotNull(response);
         assertEquals(HttpStatus.CREATED, response.getStatusCode());
         assertNotNull(response.getBody());
-        assertTrue(response.getBody().isEmpty());
+        assertTrue(response.getBody().isSuccess());
+        assertNotNull(response.getBody().getData());
+        assertTrue(response.getBody().getData().isEmpty());
         
-        verify(taskService).bulkCreateTasks(null);
+        // Verify that service method is not called when input is null
+        verify(taskService, never()).bulkCreateTasks(any());
     }
 
     @Test
@@ -139,13 +147,15 @@ class BulkOperationsControllerTest {
         when(taskService.bulkUpdateTaskStatus(taskIds, newStatus)).thenReturn(2);
 
         // When
-        ResponseEntity<String> response = bulkOperationsController.bulkUpdateStatus(taskIds, newStatus);
+        ResponseEntity<ApiResponse<String>> response = bulkOperationsController.bulkUpdateStatus(taskIds, newStatus);
 
         // Then
         assertNotNull(response);
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertNotNull(response.getBody());
-        assertTrue(response.getBody().contains("Updated status for 2 tasks"));
+        assertTrue(response.getBody().isSuccess());
+        assertNotNull(response.getBody().getData());
+        assertTrue(response.getBody().getData().contains("Updated status for 2 tasks"));
         
         verify(taskService).bulkUpdateTaskStatus(taskIds, newStatus);
     }
@@ -157,13 +167,15 @@ class BulkOperationsControllerTest {
         Status newStatus = Status.COMPLETED;
 
         // When
-        ResponseEntity<String> response = bulkOperationsController.bulkUpdateStatus(emptyIds, newStatus);
+        ResponseEntity<ApiResponse<String>> response = bulkOperationsController.bulkUpdateStatus(emptyIds, newStatus);
 
         // Then
         assertNotNull(response);
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertNotNull(response.getBody());
-        assertTrue(response.getBody().contains("Updated status for 0 tasks"));
+        assertTrue(response.getBody().isSuccess());
+        assertNotNull(response.getBody().getData());
+        assertTrue(response.getBody().getData().contains("Updated status for 0 tasks"));
         
         verify(taskService).bulkUpdateTaskStatus(emptyIds, newStatus);
     }
@@ -174,12 +186,11 @@ class BulkOperationsControllerTest {
         List<Long> taskIds = Arrays.asList(1L, 2L);
 
         // When
-        ResponseEntity<Void> response = bulkOperationsController.bulkDeleteTasks(taskIds);
+        ResponseEntity<ApiResponse<Void>> response = bulkOperationsController.bulkDeleteTasks(taskIds);
 
         // Then
         assertNotNull(response);
         assertEquals(HttpStatus.NO_CONTENT, response.getStatusCode());
-        assertNull(response.getBody());
         
         verify(taskService).bulkDeleteTasks(taskIds);
     }
@@ -190,12 +201,11 @@ class BulkOperationsControllerTest {
         List<Long> emptyIds = Arrays.asList();
 
         // When
-        ResponseEntity<Void> response = bulkOperationsController.bulkDeleteTasks(emptyIds);
+        ResponseEntity<ApiResponse<Void>> response = bulkOperationsController.bulkDeleteTasks(emptyIds);
 
         // Then
         assertNotNull(response);
         assertEquals(HttpStatus.NO_CONTENT, response.getStatusCode());
-        assertNull(response.getBody());
         
         verify(taskService).bulkDeleteTasks(emptyIds);
     }
@@ -207,14 +217,16 @@ class BulkOperationsControllerTest {
         when(taskService.bulkCompleteTasks(taskIds)).thenReturn(testTasks);
 
         // When
-        ResponseEntity<List<TaskResponse>> response = bulkOperationsController.bulkCompleteTasks(taskIds);
+        ResponseEntity<ApiResponse<List<TaskResponse>>> response = bulkOperationsController.bulkCompleteTasks(taskIds);
 
         // Then
         assertNotNull(response);
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertNotNull(response.getBody());
-        assertEquals(2, response.getBody().size());
-        assertEquals(testTasks, response.getBody());
+        assertTrue(response.getBody().isSuccess());
+        assertNotNull(response.getBody().getData());
+        assertEquals(2, response.getBody().getData().size());
+        assertEquals(testTasks, response.getBody().getData());
         
         verify(taskService).bulkCompleteTasks(taskIds);
     }
@@ -225,13 +237,15 @@ class BulkOperationsControllerTest {
         List<Long> emptyIds = Arrays.asList();
 
         // When
-        ResponseEntity<List<TaskResponse>> response = bulkOperationsController.bulkCompleteTasks(emptyIds);
+        ResponseEntity<ApiResponse<List<TaskResponse>>> response = bulkOperationsController.bulkCompleteTasks(emptyIds);
 
         // Then
         assertNotNull(response);
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertNotNull(response.getBody());
-        assertTrue(response.getBody().isEmpty());
+        assertTrue(response.getBody().isSuccess());
+        assertNotNull(response.getBody().getData());
+        assertTrue(response.getBody().getData().isEmpty());
         
         verify(taskService).bulkCompleteTasks(Collections.emptyList());
     }
@@ -243,14 +257,16 @@ class BulkOperationsControllerTest {
         when(taskService.bulkCreateTasks(singleRequest)).thenReturn(Arrays.asList(testTask1));
 
         // When
-        ResponseEntity<List<TaskResponse>> response = bulkOperationsController.bulkCreateTasks(singleRequest);
+        ResponseEntity<ApiResponse<List<TaskResponse>>> response = bulkOperationsController.bulkCreateTasks(singleRequest);
 
         // Then
         assertNotNull(response);
         assertEquals(HttpStatus.CREATED, response.getStatusCode());
         assertNotNull(response.getBody());
-        assertEquals(1, response.getBody().size());
-        assertEquals(testTask1, response.getBody().get(0));
+        assertTrue(response.getBody().isSuccess());
+        assertNotNull(response.getBody().getData());
+        assertEquals(1, response.getBody().getData().size());
+        assertEquals(testTask1, response.getBody().getData().get(0));
         
         verify(taskService).bulkCreateTasks(singleRequest);
     }
@@ -263,13 +279,15 @@ class BulkOperationsControllerTest {
         when(taskService.bulkUpdateTaskStatus(singleId, newStatus)).thenReturn(1);
 
         // When
-        ResponseEntity<String> response = bulkOperationsController.bulkUpdateStatus(singleId, newStatus);
+        ResponseEntity<ApiResponse<String>> response = bulkOperationsController.bulkUpdateStatus(singleId, newStatus);
 
         // Then
         assertNotNull(response);
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertNotNull(response.getBody());
-        assertTrue(response.getBody().contains("Updated status for 1 tasks"));
+        assertTrue(response.getBody().isSuccess());
+        assertNotNull(response.getBody().getData());
+        assertTrue(response.getBody().getData().contains("Updated status for 1 tasks"));
         
         verify(taskService).bulkUpdateTaskStatus(singleId, newStatus);
     }

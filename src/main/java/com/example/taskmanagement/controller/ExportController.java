@@ -1,5 +1,6 @@
 package com.example.taskmanagement.controller;
 
+import com.example.taskmanagement.dto.ApiResponse;
 import com.example.taskmanagement.service.ExportService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
@@ -19,7 +20,7 @@ import java.util.Map;
 @RequestMapping("/api/export")
 @CrossOrigin(origins = "*")
 @SuppressWarnings({"PMD.AvoidCatchingGenericException", "REC_CATCH_EXCEPTION"}) // Intentional generic exception handling for REST controller
-public class ExportController {
+public class ExportController extends BaseController {
 
     @Autowired
     private ExportService exportService;
@@ -103,15 +104,15 @@ public class ExportController {
     /**
      * Get available export formats.
      *
-     * @return list of available export formats
+     * @return list of available export formats wrapped in ApiResponse
      */
     @GetMapping("/formats")
-    public ResponseEntity<Map<String, String[]>> getAvailableFormats() {
+    public ResponseEntity<ApiResponse<Map<String, String[]>>> getAvailableFormats() {
         Map<String, String[]> formats = new java.util.HashMap<>();
         formats.put("taskFormats", new String[]{"csv", "json"});
         formats.put("analyticsFormats", new String[]{"json"});
         formats.put("supportedFilters", new String[]{"status", "priority", "dateRange"});
-        return ResponseEntity.ok(formats);
+        return handleSuccess(formats);
     }
 
     /**

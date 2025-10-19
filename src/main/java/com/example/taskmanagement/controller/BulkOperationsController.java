@@ -1,12 +1,12 @@
 package com.example.taskmanagement.controller;
 
+import com.example.taskmanagement.dto.ApiResponse;
 import com.example.taskmanagement.dto.TaskRequest;
 import com.example.taskmanagement.dto.TaskResponse;
 import com.example.taskmanagement.enums.Status;
 import com.example.taskmanagement.service.TaskService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -24,7 +24,7 @@ import java.util.Objects;
 @RestController
 @RequestMapping("/api/tasks/bulk")
 @CrossOrigin(origins = "*")
-public class BulkOperationsController {
+public class BulkOperationsController extends BaseController {
 
     private static final Logger logger = LoggerFactory.getLogger(BulkOperationsController.class);
 
@@ -38,34 +38,41 @@ public class BulkOperationsController {
      * Creates multiple tasks in a single request.
      *
      * @param taskRequests the list of task creation requests
-     * @return a list of created task responses
+     * @return a list of created task responses wrapped in ApiResponse
      */
     @PostMapping("/create")
-    public ResponseEntity<List<TaskResponse>> bulkCreateTasks(@Valid @RequestBody List<TaskRequest> taskRequests) {
+    public ResponseEntity<ApiResponse<List<TaskResponse>>> bulkCreateTasks(@Valid @RequestBody List<TaskRequest> taskRequests) {
         if (logger.isDebugEnabled()) {
-            logger.debug("Creating {} tasks in bulk", taskRequests.size());
+            int size = (taskRequests != null) ? taskRequests.size() : 0;
+            logger.debug("Creating {} tasks in bulk", size);
+        }
+        
+        // Handle null input gracefully
+        if (taskRequests == null) {
+            return handleCreated(new ArrayList<>());
         }
         
         List<TaskResponse> responses = taskService.bulkCreateTasks(taskRequests);
         
-        return ResponseEntity.status(HttpStatus.CREATED).body(responses);
+        return handleCreated(responses);
     }
 
     /**
      * Updates multiple tasks' status in bulk.
      *
      * @param request the bulk status update request
-     * @return a response indicating the number of updated tasks
+     * @return a response indicating the number of updated tasks wrapped in ApiResponse
      */
     @PutMapping("/status")
-    public ResponseEntity<String> bulkUpdateTaskStatus(@Valid @RequestBody BulkStatusUpdateRequest request) {
+    public ResponseEntity<ApiResponse<String>> bulkUpdateTaskStatus(@Valid @RequestBody BulkStatusUpdateRequest request) {
         if (logger.isDebugEnabled()) {
             logger.debug("Updating status for {} tasks to {}", request.getTaskIds().size(), request.getStatus());
         }
         
         int updatedCount = taskService.bulkUpdateTaskStatus(request.getTaskIds(), request.getStatus());
+        String message = "Updated status for " + updatedCount + " tasks to " + request.getStatus().getDisplayName();
         
-        return ResponseEntity.ok("Updated status for " + updatedCount + " tasks to " + request.getStatus().getDisplayName());
+        return handleSuccess(message);
     }
 
     /**
@@ -73,50 +80,56 @@ public class BulkOperationsController {
      *
      * @param taskIds list of task IDs to update
      * @param status the new status
-     * @return response with update result
+     * @return response with update result wrapped in ApiResponse
      */
-    public ResponseEntity<String> bulkUpdateStatus(List<Long> taskIds, Status status) {
+    public ResponseEntity<ApiResponse<String>> bulkUpdateStatus(List<Long> taskIds, Status status) {
         if (logger.isDebugEnabled()) {
             logger.debug("Updating status for {} tasks to {}", taskIds.size(), status);
         }
         
         int updatedCount = taskService.bulkUpdateTaskStatus(taskIds, status);
+        String message = "Updated status for " + updatedCount + " tasks to " + status.getDisplayName();
         
-        return ResponseEntity.ok("Updated status for " + updatedCount + " tasks to " + status.getDisplayName());
+        return handleSuccess(message);
     }
 
     /**
      * Deletes multiple tasks in bulk.
      *
      * @param taskIds the list of task IDs to delete
-     * @return a response indicating the number of deleted tasks
+     * @return a response indicating the number of deleted tasks wrapped in ApiResponse
      */
     @PostMapping("/delete")
-    public ResponseEntity<Void> bulkDeleteTasks(@RequestBody List<Long> taskIds) {
+    public ResponseEntity<ApiResponse<Void>> bulkDeleteTasks(@RequestBody List<Long> taskIds) {
         if (logger.isDebugEnabled()) {
-            logger.debug("Deleting {} tasks in bulk", taskIds.size());
+            logger.debug("Deleting {} tasks in bulk", taskIds != null ? taskIds.size() : 0);
+        }
+        
+        // Handle null input gracefully
+        if (taskIds == null) {
+            return handleNoContent();
         }
         
         taskService.bulkDeleteTasks(taskIds);
         
-        return ResponseEntity.noContent().build();
+        return handleNoContent();
     }
 
     /**
      * Completes multiple tasks in bulk.
      *
      * @param taskIds the list of task IDs to complete
-     * @return a response indicating the number of completed tasks
+     * @return a response indicating the number of completed tasks wrapped in ApiResponse
      */
     @PutMapping("/complete")
-    public ResponseEntity<List<TaskResponse>> bulkCompleteTasks(@RequestBody List<Long> taskIds) {
+    public ResponseEntity<ApiResponse<List<TaskResponse>>> bulkCompleteTasks(@RequestBody List<Long> taskIds) {
         if (logger.isDebugEnabled()) {
             logger.debug("Completing {} tasks in bulk", taskIds.size());
         }
         
         List<TaskResponse> completedTasks = taskService.bulkCompleteTasks(taskIds);
         
-        return ResponseEntity.ok(completedTasks);
+        return handleSuccess(completedTasks);
     }
 
     /**

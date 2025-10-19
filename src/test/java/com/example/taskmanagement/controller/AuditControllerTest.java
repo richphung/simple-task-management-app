@@ -1,5 +1,6 @@
 package com.example.taskmanagement.controller;
 
+import com.example.taskmanagement.dto.ApiResponse;
 import com.example.taskmanagement.entity.TaskAudit;
 import com.example.taskmanagement.repository.TaskAuditRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -65,14 +66,16 @@ class AuditControllerTest {
         when(taskAuditRepository.findByTaskIdOrderByChangeTimestampDesc(taskId)).thenReturn(testAuditRecords);
 
         // When
-        ResponseEntity<List<TaskAudit>> response = auditController.getAuditHistoryForTask(taskId);
+        ResponseEntity<ApiResponse<List<TaskAudit>>> response = auditController.getAuditHistoryForTask(taskId);
 
         // Then
         assertNotNull(response);
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertNotNull(response.getBody());
-        assertEquals(2, response.getBody().size());
-        assertEquals(testAuditRecords, response.getBody());
+        assertTrue(response.getBody().isSuccess());
+        assertNotNull(response.getBody().getData());
+        assertEquals(2, response.getBody().getData().size());
+        assertEquals(testAuditRecords, response.getBody().getData());
         
         verify(taskAuditRepository).findByTaskIdOrderByChangeTimestampDesc(taskId);
     }
@@ -84,12 +87,15 @@ class AuditControllerTest {
         when(taskAuditRepository.findByTaskIdOrderByChangeTimestampDesc(taskId)).thenReturn(Arrays.asList());
 
         // When
-        ResponseEntity<List<TaskAudit>> response = auditController.getAuditHistoryForTask(taskId);
+        ResponseEntity<ApiResponse<List<TaskAudit>>> response = auditController.getAuditHistoryForTask(taskId);
 
         // Then
         assertNotNull(response);
-        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
-        assertNull(response.getBody());
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertTrue(response.getBody().isSuccess());
+        assertNotNull(response.getBody().getData());
+        assertTrue(response.getBody().getData().isEmpty());
         
         verify(taskAuditRepository).findByTaskIdOrderByChangeTimestampDesc(taskId);
     }
@@ -100,12 +106,15 @@ class AuditControllerTest {
         when(taskAuditRepository.findByTaskIdOrderByChangeTimestampDesc(null)).thenReturn(Arrays.asList());
 
         // When
-        ResponseEntity<List<TaskAudit>> response = auditController.getAuditHistoryForTask(null);
+        ResponseEntity<ApiResponse<List<TaskAudit>>> response = auditController.getAuditHistoryForTask(null);
 
         // Then
         assertNotNull(response);
-        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
-        assertNull(response.getBody());
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertTrue(response.getBody().isSuccess());
+        assertNotNull(response.getBody().getData());
+        assertTrue(response.getBody().getData().isEmpty());
         
         verify(taskAuditRepository).findByTaskIdOrderByChangeTimestampDesc(null);
     }
@@ -116,14 +125,16 @@ class AuditControllerTest {
         when(taskAuditRepository.findAll()).thenReturn(testAuditRecords);
 
         // When
-        ResponseEntity<List<TaskAudit>> response = auditController.getAllAuditRecords();
+        ResponseEntity<ApiResponse<List<TaskAudit>>> response = auditController.getAllAuditRecords();
 
         // Then
         assertNotNull(response);
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertNotNull(response.getBody());
-        assertEquals(2, response.getBody().size());
-        assertEquals(testAuditRecords, response.getBody());
+        assertTrue(response.getBody().isSuccess());
+        assertNotNull(response.getBody().getData());
+        assertEquals(2, response.getBody().getData().size());
+        assertEquals(testAuditRecords, response.getBody().getData());
         
         verify(taskAuditRepository).findAll();
     }
@@ -134,13 +145,15 @@ class AuditControllerTest {
         when(taskAuditRepository.findAll()).thenReturn(Arrays.asList());
 
         // When
-        ResponseEntity<List<TaskAudit>> response = auditController.getAllAuditRecords();
+        ResponseEntity<ApiResponse<List<TaskAudit>>> response = auditController.getAllAuditRecords();
 
         // Then
         assertNotNull(response);
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertNotNull(response.getBody());
-        assertTrue(response.getBody().isEmpty());
+        assertTrue(response.getBody().isSuccess());
+        assertNotNull(response.getBody().getData());
+        assertTrue(response.getBody().getData().isEmpty());
         
         verify(taskAuditRepository).findAll();
     }
@@ -153,14 +166,16 @@ class AuditControllerTest {
         when(taskAuditRepository.findByTaskIdOrderByChangeTimestampDesc(taskId)).thenReturn(singleRecord);
 
         // When
-        ResponseEntity<List<TaskAudit>> response = auditController.getAuditHistoryForTask(taskId);
+        ResponseEntity<ApiResponse<List<TaskAudit>>> response = auditController.getAuditHistoryForTask(taskId);
 
         // Then
         assertNotNull(response);
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertNotNull(response.getBody());
-        assertEquals(1, response.getBody().size());
-        assertEquals(singleRecord, response.getBody());
+        assertTrue(response.getBody().isSuccess());
+        assertNotNull(response.getBody().getData());
+        assertEquals(1, response.getBody().getData().size());
+        assertEquals(singleRecord, response.getBody().getData());
         
         verify(taskAuditRepository).findByTaskIdOrderByChangeTimestampDesc(taskId);
     }
@@ -182,16 +197,18 @@ class AuditControllerTest {
         when(taskAuditRepository.findByTaskIdOrderByChangeTimestampDesc(taskId)).thenReturn(testAuditRecords);
 
         // When
-        ResponseEntity<List<TaskAudit>> response = auditController.getAuditHistoryForTask(taskId);
+        ResponseEntity<ApiResponse<List<TaskAudit>>> response = auditController.getAuditHistoryForTask(taskId);
 
         // Then
         assertNotNull(response);
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertNotNull(response.getBody());
-        assertEquals(2, response.getBody().size());
+        assertTrue(response.getBody().isSuccess());
+        assertNotNull(response.getBody().getData());
+        assertEquals(2, response.getBody().getData().size());
         
         // Verify only records for the specific task are returned
-        for (TaskAudit audit : response.getBody()) {
+        for (TaskAudit audit : response.getBody().getData()) {
             assertEquals(taskId, audit.getTaskId());
         }
         
@@ -217,13 +234,15 @@ class AuditControllerTest {
         when(taskAuditRepository.findAll()).thenReturn(largeDataset);
 
         // When
-        ResponseEntity<List<TaskAudit>> response = auditController.getAllAuditRecords();
+        ResponseEntity<ApiResponse<List<TaskAudit>>> response = auditController.getAllAuditRecords();
 
         // Then
         assertNotNull(response);
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertNotNull(response.getBody());
-        assertEquals(100, response.getBody().size());
+        assertTrue(response.getBody().isSuccess());
+        assertNotNull(response.getBody().getData());
+        assertEquals(100, response.getBody().getData().size());
         
         verify(taskAuditRepository).findAll();
     }

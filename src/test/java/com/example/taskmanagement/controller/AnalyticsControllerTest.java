@@ -53,61 +53,67 @@ class AnalyticsControllerTest {
     void testGetTaskCountsByStatus() throws Exception {
         Map<String, Object> stats = new java.util.HashMap<>();
         Map<String, Long> statusCountsMap = new java.util.HashMap<>();
-        statusCountsMap.put("To Do", 5L);
-        statusCountsMap.put("In Progress", 3L);
-        statusCountsMap.put("Completed", 2L);
+        statusCountsMap.put("TODO", 5L);
+        statusCountsMap.put("IN_PROGRESS", 3L);
+        statusCountsMap.put("COMPLETED", 2L);
         stats.put("statusCounts", statusCountsMap);
         when(taskAnalyticsService.getTaskStatistics()).thenReturn(stats);
 
         mockMvc.perform(get("/api/analytics/status-counts"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.TODO").value(5))
-                .andExpect(jsonPath("$.IN_PROGRESS").value(3))
-                .andExpect(jsonPath("$.COMPLETED").value(2));
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.TODO").value(5))
+                .andExpect(jsonPath("$.data.IN_PROGRESS").value(3))
+                .andExpect(jsonPath("$.data.COMPLETED").value(2));
     }
 
     @Test
     void testGetTaskCountsByPriority() throws Exception {
         Map<String, Object> stats = new java.util.HashMap<>();
         Map<String, Long> priorityCountsMap = new java.util.HashMap<>();
-        priorityCountsMap.put("High", 4L);
-        priorityCountsMap.put("Medium", 3L);
-        priorityCountsMap.put("Low", 3L);
+        priorityCountsMap.put("HIGH", 4L);
+        priorityCountsMap.put("MEDIUM", 3L);
+        priorityCountsMap.put("LOW", 3L);
         stats.put("priorityCounts", priorityCountsMap);
         when(taskAnalyticsService.getTaskStatistics()).thenReturn(stats);
 
         mockMvc.perform(get("/api/analytics/priority-counts"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.HIGH").value(4))
-                .andExpect(jsonPath("$.MEDIUM").value(3))
-                .andExpect(jsonPath("$.LOW").value(3));
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.HIGH").value(4))
+                .andExpect(jsonPath("$.data.MEDIUM").value(3))
+                .andExpect(jsonPath("$.data.LOW").value(3));
     }
 
     @Test
     void testGetDashboardAnalytics() throws Exception {
         Map<String, Object> stats = new java.util.HashMap<>();
         Map<String, Long> statusCountsMap = new java.util.HashMap<>();
-        statusCountsMap.put("To Do", 5L);
-        statusCountsMap.put("In Progress", 3L);
-        statusCountsMap.put("Completed", 2L);
+        statusCountsMap.put("TODO", 5L);
+        statusCountsMap.put("IN_PROGRESS", 3L);
+        statusCountsMap.put("COMPLETED", 2L);
         Map<String, Long> priorityCountsMap = new java.util.HashMap<>();
-        priorityCountsMap.put("High", 4L);
-        priorityCountsMap.put("Medium", 3L);
-        priorityCountsMap.put("Low", 3L);
+        priorityCountsMap.put("HIGH", 4L);
+        priorityCountsMap.put("MEDIUM", 3L);
+        priorityCountsMap.put("LOW", 3L);
         stats.put("statusCounts", statusCountsMap);
         stats.put("priorityCounts", priorityCountsMap);
+        stats.put("totalTasks", 10L);
+        stats.put("completedTasks", 2L);
+        stats.put("completionRate", 20.0);
         when(taskAnalyticsService.getTaskStatistics()).thenReturn(stats);
 
         mockMvc.perform(get("/api/analytics/dashboard"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.statusCounts.TODO").value(5))
-                .andExpect(jsonPath("$.statusCounts.IN_PROGRESS").value(3))
-                .andExpect(jsonPath("$.statusCounts.COMPLETED").value(2))
-                .andExpect(jsonPath("$.priorityCounts.HIGH").value(4))
-                .andExpect(jsonPath("$.priorityCounts.MEDIUM").value(3))
-                .andExpect(jsonPath("$.priorityCounts.LOW").value(3))
-                .andExpect(jsonPath("$.totalTasks").value(10))
-                .andExpect(jsonPath("$.completedTasks").value(2))
-                .andExpect(jsonPath("$.completionRate").value(20.0));
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.statusCounts.TODO").value(5))
+                .andExpect(jsonPath("$.data.statusCounts.IN_PROGRESS").value(3))
+                .andExpect(jsonPath("$.data.statusCounts.COMPLETED").value(2))
+                .andExpect(jsonPath("$.data.priorityCounts.HIGH").value(4))
+                .andExpect(jsonPath("$.data.priorityCounts.MEDIUM").value(3))
+                .andExpect(jsonPath("$.data.priorityCounts.LOW").value(3))
+                .andExpect(jsonPath("$.data.totalTasks").value(10))
+                .andExpect(jsonPath("$.data.completedTasks").value(2))
+                .andExpect(jsonPath("$.data.completionRate").value(20.0));
     }
 }

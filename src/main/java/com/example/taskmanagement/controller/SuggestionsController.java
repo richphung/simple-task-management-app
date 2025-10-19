@@ -1,5 +1,6 @@
 package com.example.taskmanagement.controller;
 
+import com.example.taskmanagement.dto.ApiResponse;
 import com.example.taskmanagement.service.SmartSuggestionService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -16,7 +17,7 @@ import java.util.Map;
 @RequestMapping("/api/suggestions")
 @CrossOrigin(origins = "*")
 @SuppressWarnings({"PMD.AvoidCatchingGenericException", "REC_CATCH_EXCEPTION"}) // Intentional generic exception handling for REST controller
-public class SuggestionsController {
+public class SuggestionsController extends BaseController {
 
     @Autowired
     private SmartSuggestionService smartSuggestionService;
@@ -25,16 +26,16 @@ public class SuggestionsController {
      * Get smart suggestions for a task based on its title.
      *
      * @param title the task title
-     * @return map of suggestions including priority, due date, status, etc.
+     * @return map of suggestions including priority, due date, status, etc. wrapped in ApiResponse
      */
     @GetMapping("/task")
-    public ResponseEntity<List<SmartSuggestionService.TaskSuggestion>> getTaskSuggestions(@RequestParam String title) {
+    public ResponseEntity<ApiResponse<List<SmartSuggestionService.TaskSuggestion>>> getTaskSuggestions(@RequestParam String title) {
         try {
             List<SmartSuggestionService.TaskSuggestion> suggestions = smartSuggestionService.generateSuggestions(title);
             if (suggestions.isEmpty()) {
-                return ResponseEntity.noContent().build();
+                return handleSuccess(suggestions);
             }
-            return ResponseEntity.ok(suggestions);
+            return handleSuccess(suggestions);
         } catch (Exception e) {
             return ResponseEntity.internalServerError().build();
         }
@@ -44,10 +45,10 @@ public class SuggestionsController {
      * Get smart suggestions for multiple tasks.
      *
      * @param titles array of task titles
-     * @return map of suggestions for each title
+     * @return map of suggestions for each title wrapped in ApiResponse
      */
     @PostMapping("/tasks")
-    public ResponseEntity<Map<String, List<SmartSuggestionService.TaskSuggestion>>> getMultipleTaskSuggestions(
+    public ResponseEntity<ApiResponse<Map<String, List<SmartSuggestionService.TaskSuggestion>>>> getMultipleTaskSuggestions(
             @RequestBody String[] titles) {
         try {
             Map<String, List<SmartSuggestionService.TaskSuggestion>> allSuggestions = new java.util.HashMap<>();
@@ -57,7 +58,7 @@ public class SuggestionsController {
                 allSuggestions.put(title, suggestions);
             }
             
-            return ResponseEntity.ok(allSuggestions);
+            return handleSuccess(allSuggestions);
         } catch (Exception e) {
             return ResponseEntity.internalServerError().build();
         }
@@ -66,13 +67,13 @@ public class SuggestionsController {
     /**
      * Get default task suggestions.
      *
-     * @return list of default suggestions
+     * @return list of default suggestions wrapped in ApiResponse
      */
     @GetMapping("/default")
-    public ResponseEntity<List<SmartSuggestionService.TaskSuggestion>> getDefaultSuggestions() {
+    public ResponseEntity<ApiResponse<List<SmartSuggestionService.TaskSuggestion>>> getDefaultSuggestions() {
         try {
             List<SmartSuggestionService.TaskSuggestion> suggestions = smartSuggestionService.getDefaultSuggestions();
-            return ResponseEntity.ok(suggestions);
+            return handleSuccess(suggestions);
         } catch (Exception e) {
             return ResponseEntity.internalServerError().build();
         }

@@ -1,10 +1,11 @@
 package com.example.taskmanagement.service;
 
+import com.example.taskmanagement.constants.TaskConstants;
+import com.example.taskmanagement.entity.Task;
 import com.example.taskmanagement.enums.Priority;
 import com.example.taskmanagement.enums.Status;
 import com.example.taskmanagement.repository.TaskRepository;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.example.taskmanagement.util.TaskStatisticsCalculator;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
@@ -13,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -21,57 +23,63 @@ import java.util.Map;
  */
 @Service
 @Transactional(readOnly = true)
-public class TaskAnalyticsService {
-
-    private static final Logger logger = LoggerFactory.getLogger(TaskAnalyticsService.class);
+public class TaskAnalyticsService extends BaseService {
 
     private final TaskRepository taskRepository;
+    private final TaskStatisticsCalculator statisticsCalculator;
 
     @Autowired
-    public TaskAnalyticsService(TaskRepository taskRepository) {
+    public TaskAnalyticsService(TaskRepository taskRepository, TaskStatisticsCalculator statisticsCalculator) {
         this.taskRepository = taskRepository;
+        this.statisticsCalculator = statisticsCalculator;
     }
 
     /**
-     * Gets comprehensive task statistics.
+     * Gets comprehensive task statistics using optimized repository methods.
      *
      * @return a map containing various task statistics
      */
-    @Cacheable(value = "taskStats", key = "'all'")
+    @Cacheable(value = TaskConstants.CACHE_TASK_ANALYTICS, key = "'all'")
     public Map<String, Object> getTaskStatistics() {
-        logger.debug("Generating task statistics");
+        logDebug("Generating task statistics");
 
-        Map<String, Object> stats = new HashMap<>();
+        // Get all tasks and calculate statistics
+        List<Task> allTasks = taskRepository.findAll();
+        Map<String, Object> stats = statisticsCalculator.calculateComprehensiveStats(allTasks);
+        
+            // Convert enum-based maps to enum name maps for API responses
+            // Initialize all statuses with 0 count
+            Map<String, Long> statusCounts = new HashMap<>();
+            for (Status status : Status.values()) {
+                statusCounts.put(status.name(), 0L);
+            }
+            
+            // Override with actual counts
+            @SuppressWarnings("unchecked")
+            Map<Status, Long> statusCountsEnum = (Map<Status, Long>) stats.get("statusCounts");
+            for (Map.Entry<Status, Long> entry : statusCountsEnum.entrySet()) {
+                statusCounts.put(entry.getKey().name(), entry.getValue());
+            }
+            
+            // Initialize all priorities with 0 count
+            Map<String, Long> priorityCounts = new HashMap<>();
+            for (Priority priority : Priority.values()) {
+                priorityCounts.put(priority.name(), 0L);
+            }
+            
+            // Override with actual counts
+            @SuppressWarnings("unchecked")
+            Map<Priority, Long> priorityCountsEnum = (Map<Priority, Long>) stats.get("priorityCounts");
+            for (Map.Entry<Priority, Long> entry : priorityCountsEnum.entrySet()) {
+                priorityCounts.put(entry.getKey().name(), entry.getValue());
+            }
+            
+            // Update stats with enum name maps
+            stats.put("statusCounts", statusCounts);
+            stats.put("priorityCounts", priorityCounts);
 
-        // Status counts
-        Map<String, Long> statusCounts = new HashMap<>();
-        for (Status status : Status.values()) {
-            statusCounts.put(status.getDisplayName(), taskRepository.countByStatus(status));
-        }
-        stats.put("statusCounts", statusCounts);
-
-        // Priority counts
-        Map<String, Long> priorityCounts = new HashMap<>();
-        for (Priority priority : Priority.values()) {
-            priorityCounts.put(priority.getDisplayName(), taskRepository.countByPriority(priority));
-        }
-        stats.put("priorityCounts", priorityCounts);
-
-        // Overdue tasks count
-        long overdueCount = taskRepository.findOverdueTasks(LocalDate.now()).size();
-        stats.put("overdueCount", overdueCount);
-
-        // Total tasks
-        long totalTasks = taskRepository.count();
-        stats.put("totalTasks", totalTasks);
-
-        // Completion rate
-        long completedTasks = taskRepository.countByStatus(Status.COMPLETED);
-        double completionRate = totalTasks > 0 ? (double) completedTasks / totalTasks * 100 : 0;
-        stats.put("completionRate", Math.round(completionRate * 100.0) / 100.0);
-
-        logger.info("Task statistics generated: Total={}, Completed={}, Overdue={}", 
-                totalTasks, completedTasks, overdueCount);
+        logInfo("Task statistics generated: Total={}, Completed={}, Overdue={}", 
+                stats.get("totalTasks"), stats.get("completedTasks"), stats.get("overdueTasks"));
 
         return stats;
     }
@@ -85,7 +93,7 @@ public class TaskAnalyticsService {
      */
     @Cacheable(value = "taskStats", key = "#startDate + '-' + #endDate")
     public Map<String, Object> getTaskStatisticsForDateRange(LocalDate startDate, LocalDate endDate) {
-        logger.debug("Generating task statistics for date range: {} to {}", startDate, endDate);
+        logDebug("Generating task statistics for date range: {} to {}", startDate, endDate);
 
         Map<String, Object> stats = new HashMap<>();
 
@@ -97,19 +105,23 @@ public class TaskAnalyticsService {
                 org.springframework.data.domain.PageRequest.of(0, Integer.MAX_VALUE)).getTotalElements();
         stats.put("tasksCreated", tasksCreated);
 
-        // Status counts for created tasks
+        // Get tasks created in date range for statistics
+        List<Task> tasksInRange = taskRepository.findTasksCreatedBetween(startDateTime, endDateTime, 
+                org.springframework.data.domain.PageRequest.of(0, Integer.MAX_VALUE)).getContent();
+
+        // Use statistics calculator for consistent calculations
+        Map<String, Object> rangeStats = statisticsCalculator.calculateComprehensiveStats(tasksInRange);
+        
+        // Convert enum maps to display name maps for API response
         Map<String, Long> statusCounts = new HashMap<>();
-        for (Status status : Status.values()) {
-            long count = taskRepository.findTasksCreatedBetween(startDateTime, endDateTime, 
-                    org.springframework.data.domain.PageRequest.of(0, Integer.MAX_VALUE))
-                    .getContent().stream()
-                    .mapToLong(task -> task.getStatus() == status ? 1 : 0)
-                    .sum();
-            statusCounts.put(status.getDisplayName(), count);
+        @SuppressWarnings("unchecked")
+        Map<Status, Long> statusCountsEnum = (Map<Status, Long>) rangeStats.get("statusCounts");
+        for (Map.Entry<Status, Long> entry : statusCountsEnum.entrySet()) {
+            statusCounts.put(entry.getKey().getDisplayName(), entry.getValue());
         }
         stats.put("statusCounts", statusCounts);
 
-        logger.info("Task statistics for date range generated: Created={}", tasksCreated);
+        logInfo("Task statistics for date range generated: Created={}", tasksCreated);
 
         return stats;
     }
@@ -121,36 +133,20 @@ public class TaskAnalyticsService {
      */
     @Cacheable(value = "productivityMetrics", key = "'current'")
     public Map<String, Object> getProductivityMetrics() {
-        logger.debug("Generating productivity metrics");
+        logDebug("Generating productivity metrics");
 
-        Map<String, Object> metrics = new HashMap<>();
+        // Get all tasks for comprehensive metrics
+        List<Task> allTasks = taskRepository.findAll();
+        
+        // Use the statistics calculator for consistent calculations
+        Map<String, Object> metrics = statisticsCalculator.calculateComprehensiveStats(allTasks);
 
-        // Total tasks
-        long totalTasks = taskRepository.count();
-        metrics.put("totalTasks", totalTasks);
-
-        // Completed tasks
-        long completedTasks = taskRepository.countByStatus(Status.COMPLETED);
-        metrics.put("completedTasks", completedTasks);
-
-        // In progress tasks
+        // Add additional metrics
         long inProgressTasks = taskRepository.countByStatus(Status.IN_PROGRESS);
         metrics.put("inProgressTasks", inProgressTasks);
 
-        // Overdue tasks
-        long overdueTasks = taskRepository.findOverdueTasks(LocalDate.now()).size();
-        metrics.put("overdueTasks", overdueTasks);
-
-        // Completion rate
-        double completionRate = totalTasks > 0 ? (double) completedTasks / totalTasks * 100 : 0;
-        metrics.put("completionRate", Math.round(completionRate * 100.0) / 100.0);
-
-        // Overdue rate
-        double overdueRate = totalTasks > 0 ? (double) overdueTasks / totalTasks * 100 : 0;
-        metrics.put("overdueRate", Math.round(overdueRate * 100.0) / 100.0);
-
-        logger.info("Productivity metrics generated: Completion Rate={}%, Overdue Rate={}%", 
-                completionRate, overdueRate);
+        logInfo("Productivity metrics generated: Completion Rate={}%, Overdue Rate={}%", 
+                metrics.get("completionRate"), metrics.get("overdueRate"));
 
         return metrics;
     }

@@ -5,6 +5,8 @@ import com.example.taskmanagement.entity.Task;
 import com.example.taskmanagement.enums.Priority;
 import com.example.taskmanagement.enums.Status;
 import com.example.taskmanagement.repository.TaskRepository;
+import com.example.taskmanagement.util.DateUtil;
+import com.example.taskmanagement.util.TaskConverter;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -32,6 +34,12 @@ class ExportServiceTest {
 
     @Mock
     private ObjectMapper objectMapper;
+
+    @Mock
+    private TaskConverter taskConverter;
+
+    @Mock
+    private DateUtil dateUtil;
 
     @InjectMocks
     private ExportService exportService;
@@ -72,6 +80,8 @@ class ExportServiceTest {
     void testExportTasksToCsv() {
         // Given
         when(taskRepository.findAll()).thenReturn(testTasks);
+        when(dateUtil.formatDate(any())).thenReturn("2025-10-08");
+        when(dateUtil.formatDateTime(any())).thenReturn("2025-10-08 10:00:00");
 
         // When
         byte[] result = exportService.exportTasksToCsv();
@@ -112,7 +122,12 @@ class ExportServiceTest {
     @Test
     void testExportTasksToJson() throws Exception {
         // Given
+        TaskResponse response1 = createTaskResponse(testTask1);
+        TaskResponse response2 = createTaskResponse(testTask2);
+        List<TaskResponse> taskResponses = Arrays.asList(response1, response2);
+        
         when(taskRepository.findAll()).thenReturn(testTasks);
+        when(taskConverter.convertToResponseList(testTasks)).thenReturn(taskResponses);
         byte[] expectedJson = "{\"tasks\":[]}".getBytes();
         when(objectMapper.writeValueAsBytes(any(List.class))).thenReturn(expectedJson);
 
@@ -124,19 +139,26 @@ class ExportServiceTest {
         assertEquals(expectedJson, result);
         
         verify(taskRepository).findAll();
+        verify(taskConverter).convertToResponseList(testTasks);
         verify(objectMapper).writeValueAsBytes(any(List.class));
     }
 
     @Test
     void testExportTasksToJsonWithException() throws Exception {
         // Given
+        TaskResponse response1 = createTaskResponse(testTask1);
+        TaskResponse response2 = createTaskResponse(testTask2);
+        List<TaskResponse> taskResponses = Arrays.asList(response1, response2);
+        
         when(taskRepository.findAll()).thenReturn(testTasks);
+        when(taskConverter.convertToResponseList(testTasks)).thenReturn(taskResponses);
         when(objectMapper.writeValueAsBytes(any(List.class))).thenThrow(new RuntimeException("JSON error"));
 
         // When & Then
         assertThrows(RuntimeException.class, () -> exportService.exportTasksToJson());
         
         verify(taskRepository).findAll();
+        verify(taskConverter).convertToResponseList(testTasks);
         verify(objectMapper).writeValueAsBytes(any(List.class));
     }
 
@@ -201,5 +223,21 @@ class ExportServiceTest {
         
         verify(taskRepository).count();
         verify(objectMapper).writeValueAsBytes(any());
+    }
+
+    private TaskResponse createTaskResponse(Task task) {
+        TaskResponse response = new TaskResponse();
+        response.setId(task.getId());
+        response.setTitle(task.getTitle());
+        response.setDescription(task.getDescription());
+        response.setStatus(task.getStatus());
+        response.setPriority(task.getPriority());
+        response.setDueDate(task.getDueDate());
+        response.setCreatedAt(task.getCreatedAt());
+        response.setUpdatedAt(task.getUpdatedAt());
+        response.setCompletedAt(task.getCompletedAt());
+        response.setNotes(task.getNotes());
+        response.setOverdue(task.isOverdue());
+        return response;
     }
 }

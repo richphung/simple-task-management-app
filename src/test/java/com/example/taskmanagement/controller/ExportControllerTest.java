@@ -1,5 +1,7 @@
 package com.example.taskmanagement.controller;
 
+import com.example.taskmanagement.dto.ApiResponse;
+
 import com.example.taskmanagement.service.ExportService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -158,13 +160,16 @@ class ExportControllerTest {
     @Test
     void testGetAvailableFormats() {
         // When
-        ResponseEntity<java.util.Map<String, String[]>> response = exportController.getAvailableFormats();
+        ResponseEntity<ApiResponse<java.util.Map<String, String[]>>> response = exportController.getAvailableFormats();
 
         // Then
         assertNotNull(response);
         assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertTrue(response.getBody().isSuccess());
+        assertNotNull(response.getBody().getData());
         
-        java.util.Map<String, String[]> formats = response.getBody();
+        java.util.Map<String, String[]> formats = response.getBody().getData();
         assertNotNull(formats);
         assertTrue(formats.containsKey("taskFormats"));
         assertTrue(formats.containsKey("analyticsFormats"));

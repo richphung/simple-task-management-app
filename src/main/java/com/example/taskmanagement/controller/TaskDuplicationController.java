@@ -1,12 +1,12 @@
 package com.example.taskmanagement.controller;
 
 import com.example.taskmanagement.dto.TaskResponse;
+import com.example.taskmanagement.dto.ApiResponse;
 import com.example.taskmanagement.exception.TaskNotFoundException;
 import com.example.taskmanagement.service.TaskService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -19,7 +19,7 @@ import java.util.Optional;
 @RestController
 @RequestMapping("/api/tasks")
 @CrossOrigin(origins = "*")
-public class TaskDuplicationController {
+public class TaskDuplicationController extends BaseController {
 
     private static final Logger logger = LoggerFactory.getLogger(TaskDuplicationController.class);
 
@@ -33,7 +33,7 @@ public class TaskDuplicationController {
      * @return the duplicated task response
      */
     @PostMapping("/{id}/duplicate")
-    public ResponseEntity<TaskResponse> duplicateTask(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<TaskResponse>> duplicateTask(@PathVariable Long id) {
         if (logger.isDebugEnabled()) {
             logger.debug("Duplicating task: ID={}", id);
         }
@@ -41,7 +41,7 @@ public class TaskDuplicationController {
         try {
             // Use the service method to duplicate the task
             TaskResponse duplicatedTask = taskService.duplicateTask(id);
-            return ResponseEntity.status(HttpStatus.CREATED).body(duplicatedTask);
+            return handleCreated(duplicatedTask);
         } catch (TaskNotFoundException e) {
             if (logger.isDebugEnabled()) {
                 logger.debug("Task not found for duplication: ID={}", id);
@@ -58,7 +58,7 @@ public class TaskDuplicationController {
      * @return the duplicated task response
      */
     @PostMapping("/{id}/custom")
-    public ResponseEntity<TaskResponse> duplicateTaskWithModifications(
+    public ResponseEntity<ApiResponse<TaskResponse>> duplicateTaskWithModifications(
             @PathVariable Long id,
             @RequestBody TaskModificationRequest modifications) {
         
@@ -85,7 +85,7 @@ public class TaskDuplicationController {
         
         TaskResponse duplicatedTask = taskService.createTask(duplicateRequest);
         
-        return ResponseEntity.status(HttpStatus.CREATED).body(duplicatedTask);
+        return handleCreated(duplicatedTask);
     }
 
     /**

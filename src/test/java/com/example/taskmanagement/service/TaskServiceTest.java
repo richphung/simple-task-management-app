@@ -9,6 +9,7 @@ import com.example.taskmanagement.event.TaskCompletedEvent;
 import com.example.taskmanagement.event.TaskCreatedEvent;
 import com.example.taskmanagement.event.TaskUpdatedEvent;
 import com.example.taskmanagement.repository.TaskRepository;
+import com.example.taskmanagement.util.TaskConverter;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -44,6 +45,9 @@ class TaskServiceTest {
     @Mock
     private ApplicationEventPublisher eventPublisher;
 
+    @Mock
+    private TaskConverter taskConverter;
+
     @InjectMocks
     private TaskService taskService;
 
@@ -72,7 +76,9 @@ class TaskServiceTest {
     @Test
     void testCreateTask() {
         // Given
+        when(taskConverter.convertToEntity(taskRequest)).thenReturn(task);
         when(taskRepository.save(any(Task.class))).thenReturn(task);
+        when(taskConverter.convertToResponse(task)).thenReturn(createTaskResponse());
 
         // When
         TaskResponse result = taskService.createTask(taskRequest);
@@ -86,14 +92,17 @@ class TaskServiceTest {
         assertEquals(task.getDueDate(), result.getDueDate());
         assertEquals(task.getNotes(), result.getNotes());
 
+        verify(taskConverter).convertToEntity(taskRequest);
         verify(taskRepository).save(any(Task.class));
         verify(eventPublisher).publishEvent(any(TaskCreatedEvent.class));
+        verify(taskConverter).convertToResponse(task);
     }
 
     @Test
     void testGetTaskById() {
         // Given
         when(taskRepository.findById(1L)).thenReturn(Optional.of(task));
+        when(taskConverter.convertToResponse(task)).thenReturn(createTaskResponse());
 
         // When
         Optional<TaskResponse> result = taskService.getTaskById(1L);
@@ -102,6 +111,7 @@ class TaskServiceTest {
         assertTrue(result.isPresent());
         assertEquals(task.getTitle(), result.get().getTitle());
         verify(taskRepository).findById(1L);
+        verify(taskConverter).convertToResponse(task);
     }
 
     @Test
@@ -122,6 +132,7 @@ class TaskServiceTest {
         // Given
         when(taskRepository.findById(1L)).thenReturn(Optional.of(task));
         when(taskRepository.save(any(Task.class))).thenReturn(task);
+        when(taskConverter.convertToResponse(task)).thenReturn(createTaskResponse());
 
         // When
         Optional<TaskResponse> result = taskService.updateTask(1L, taskRequest);
@@ -132,6 +143,7 @@ class TaskServiceTest {
         verify(taskRepository).findById(1L);
         verify(taskRepository).save(any(Task.class));
         verify(eventPublisher).publishEvent(any(TaskUpdatedEvent.class));
+        verify(taskConverter).convertToResponse(task);
     }
 
     @Test
@@ -179,8 +191,17 @@ class TaskServiceTest {
     @Test
     void testCompleteTask() {
         // Given
+        Task completedTask = createTask();
+        completedTask.setStatus(Status.COMPLETED);
+        completedTask.setCompletedAt(LocalDateTime.now());
+        
+        TaskResponse completedTaskResponse = createTaskResponse();
+        completedTaskResponse.setStatus(Status.COMPLETED);
+        completedTaskResponse.setCompletedAt(LocalDateTime.now());
+        
         when(taskRepository.findById(1L)).thenReturn(Optional.of(task));
-        when(taskRepository.save(any(Task.class))).thenReturn(task);
+        when(taskRepository.save(any(Task.class))).thenReturn(completedTask);
+        when(taskConverter.convertToResponse(completedTask)).thenReturn(completedTaskResponse);
 
         // When
         Optional<TaskResponse> result = taskService.completeTask(1L);
@@ -192,6 +213,7 @@ class TaskServiceTest {
         verify(taskRepository).findById(1L);
         verify(taskRepository).save(any(Task.class));
         verify(eventPublisher).publishEvent(any(TaskCompletedEvent.class));
+        verify(taskConverter).convertToResponse(completedTask);
     }
 
     @Test
@@ -214,6 +236,7 @@ class TaskServiceTest {
         List<Task> tasks = Arrays.asList(task);
         Page<Task> taskPage = new PageImpl<>(tasks);
         when(taskRepository.findAll(any(Pageable.class))).thenReturn(taskPage);
+        when(taskConverter.convertToResponsePage(taskPage)).thenReturn(new PageImpl<>(Arrays.asList(createTaskResponse())));
 
         // When
         Page<TaskResponse> result = taskService.getAllTasks(0, 10);
@@ -223,6 +246,7 @@ class TaskServiceTest {
         assertEquals(1, result.getTotalElements());
         assertEquals(task.getTitle(), result.getContent().get(0).getTitle());
         verify(taskRepository).findAll(any(Pageable.class));
+        verify(taskConverter).convertToResponsePage(taskPage);
     }
 
     @Test
@@ -249,5 +273,34 @@ class TaskServiceTest {
         // Then
         assertEquals(3L, result);
         verify(taskRepository).countByPriority(Priority.HIGH);
+    }
+
+    private Task createTask() {
+        Task task = new Task();
+        task.setId(1L);
+        task.setTitle("Test Task");
+        task.setDescription("Test Description");
+        task.setPriority(Priority.HIGH);
+        task.setStatus(Status.TODO);
+        task.setDueDate(LocalDate.now().plusDays(1));
+        task.setNotes("Test Notes");
+        task.setCreatedAt(LocalDateTime.now());
+        task.setUpdatedAt(LocalDateTime.now());
+        return task;
+    }
+
+    private TaskResponse createTaskResponse() {
+        TaskResponse response = new TaskResponse();
+        response.setId(task.getId());
+        response.setTitle(task.getTitle());
+        response.setDescription(task.getDescription());
+        response.setPriority(task.getPriority());
+        response.setStatus(task.getStatus());
+        response.setDueDate(task.getDueDate());
+        response.setNotes(task.getNotes());
+        response.setCreatedAt(task.getCreatedAt());
+        response.setUpdatedAt(task.getUpdatedAt());
+        response.setOverdue(task.isOverdue());
+        return response;
     }
 }

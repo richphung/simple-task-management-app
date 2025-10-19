@@ -11,9 +11,10 @@ import com.example.taskmanagement.event.TaskCreatedEvent;
 import com.example.taskmanagement.event.TaskUpdatedEvent;
 import com.example.taskmanagement.exception.TaskNotFoundException;
 import com.example.taskmanagement.repository.TaskRepository;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.example.taskmanagement.util.TaskConverter;
 import org.springframework.beans.factory.annotation.Autowired;
+
+import java.util.Arrays;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.context.ApplicationEventPublisher;
@@ -37,17 +38,17 @@ import java.util.stream.Collectors;
  */
 @Service
 @Transactional
-public class TaskService {
-
-    private static final Logger logger = LoggerFactory.getLogger(TaskService.class);
+public class TaskService extends BaseService {
 
     private final TaskRepository taskRepository;
     private final ApplicationEventPublisher eventPublisher;
+    private final TaskConverter taskConverter;
 
     @Autowired
-    public TaskService(TaskRepository taskRepository, ApplicationEventPublisher eventPublisher) {
+    public TaskService(TaskRepository taskRepository, ApplicationEventPublisher eventPublisher, TaskConverter taskConverter) {
         this.taskRepository = taskRepository;
         this.eventPublisher = eventPublisher;
+        this.taskConverter = taskConverter;
     }
 
     /**
@@ -57,25 +58,14 @@ public class TaskService {
      * @return the created task response
      */
     public TaskResponse createTask(TaskRequest taskRequest) {
-        if (logger.isDebugEnabled()) {
-            logger.debug("Creating new task: {}", taskRequest.getTitle());
-        }
+        logDebug("Creating new task: {}", taskRequest.getTitle());
 
-        Task task = new Task();
-        task.setTitle(taskRequest.getTitle());
-        task.setDescription(taskRequest.getDescription());
-        task.setPriority(taskRequest.getPriority());
-        task.setStatus(taskRequest.getStatus());
-        task.setDueDate(taskRequest.getDueDate());
-        task.setNotes(taskRequest.getNotes());
-
+        Task task = taskConverter.convertToEntity(taskRequest);
         Task savedTask = taskRepository.save(task);
         eventPublisher.publishEvent(new TaskCreatedEvent(savedTask));
 
-        if (logger.isInfoEnabled()) {
-            logger.info("Task created successfully: ID={}, Title='{}'", savedTask.getId(), savedTask.getTitle());
-        }
-        return convertToResponse(savedTask);
+        logInfo("Task created successfully: ID={}, Title='{}'", savedTask.getId(), savedTask.getTitle());
+        return taskConverter.convertToResponse(savedTask);
     }
 
     /**
@@ -87,9 +77,9 @@ public class TaskService {
     @Transactional(readOnly = true)
     @Cacheable(value = "tasks", key = "#id")
     public Optional<TaskResponse> getTaskById(Long id) {
-        logger.debug("Retrieving task by ID: {}", id);
+        logDebug("Retrieving task by ID: {}", id);
         return taskRepository.findById(id)
-                .map(this::convertToResponse);
+                .map(taskConverter::convertToResponse);
     }
 
     /**
@@ -101,7 +91,7 @@ public class TaskService {
      */
     @CacheEvict(value = "tasks", key = "#id")
     public Optional<TaskResponse> updateTask(Long id, TaskRequest taskRequest) {
-        logger.debug("Updating task: ID={}", id);
+        logDebug("Updating task: ID={}", id);
 
         return taskRepository.findById(id)
                 .map(existingTask -> {
@@ -117,10 +107,8 @@ public class TaskService {
                     Task savedTask = taskRepository.save(existingTask);
                     eventPublisher.publishEvent(new TaskUpdatedEvent(savedTask));
 
-                    if (logger.isInfoEnabled()) {
-                        logger.info("Task updated successfully: ID={}, Title='{}'", savedTask.getId(), savedTask.getTitle());
-                    }
-                    return convertToResponse(savedTask);
+                    logInfo("Task updated successfully: ID={}, Title='{}'", savedTask.getId(), savedTask.getTitle());
+                    return taskConverter.convertToResponse(savedTask);
                 });
     }
 
@@ -132,11 +120,11 @@ public class TaskService {
      */
     @CacheEvict(value = "tasks", key = "#id")
     public boolean deleteTask(Long id) {
-        logger.debug("Deleting task: ID={}", id);
+        logDebug("Deleting task: ID={}", id);
 
         if (taskRepository.existsById(id)) {
             taskRepository.deleteById(id);
-            logger.info("Task deleted successfully: ID={}", id);
+            logInfo("Task deleted successfully: ID={}", id);
             return true;
         }
         return false;
@@ -151,14 +139,14 @@ public class TaskService {
      */
     @CacheEvict(value = "tasks", key = "#id")
     public boolean updateTaskStatus(Long id, Status status) {
-        logger.debug("Updating task status: ID={}, Status={}", id, status);
+        logDebug("Updating task status: ID={}, Status={}", id, status);
 
         Optional<Task> taskOpt = taskRepository.findById(id);
         if (taskOpt.isPresent()) {
             Task task = taskOpt.get();
             task.setStatus(status);
             taskRepository.save(task);
-            logger.info("Task status updated successfully: ID={}, Status={}", id, status);
+            logInfo("Task status updated successfully: ID={}, Status={}", id, status);
             return true;
         }
         return false;
@@ -166,13 +154,14 @@ public class TaskService {
 
     /**
      * Searches tasks with pagination and filtering.
+     * Uses optimized repository methods for better performance.
      *
      * @param searchRequest the search criteria
      * @return a page of task responses
      */
     @Transactional(readOnly = true)
     public Page<TaskResponse> searchTasks(TaskSearchRequest searchRequest) {
-        logger.debug("Searching tasks with criteria: {}", searchRequest);
+        logDebug("Searching tasks with criteria: {}", searchRequest);
 
         Sort sort = Sort.by(
                 "desc".equalsIgnoreCase(searchRequest.getSortDirection()) 
@@ -185,7 +174,22 @@ public class TaskService {
 
         Page<Task> tasks;
         
-        if (searchRequest.getSearchTerm() != null && !searchRequest.getSearchTerm().trim().isEmpty()) {
+        // Use optimized advanced search for complex criteria
+        if (hasMultipleCriteria(searchRequest)) {
+            List<Status> statuses = searchRequest.getStatus() != null ? 
+                Arrays.asList(searchRequest.getStatus()) : null;
+            List<Priority> priorities = searchRequest.getPriority() != null ? 
+                Arrays.asList(searchRequest.getPriority()) : null;
+            
+            tasks = taskRepository.findTasksWithAdvancedSearch(
+                searchRequest.getSearchTerm(),
+                statuses,
+                priorities,
+                searchRequest.getDueDateFrom(),
+                searchRequest.getDueDateTo(),
+                pageable
+            );
+        } else if (searchRequest.getSearchTerm() != null && !searchRequest.getSearchTerm().trim().isEmpty()) {
             tasks = taskRepository.searchTasks(searchRequest.getSearchTerm(), pageable);
         } else if (searchRequest.getStatus() != null) {
             tasks = taskRepository.findByStatus(searchRequest.getStatus(), pageable);
@@ -193,7 +197,30 @@ public class TaskService {
             tasks = taskRepository.findAll(pageable);
         }
 
-        return tasks.map(this::convertToResponse);
+        return taskConverter.convertToResponsePage(tasks);
+    }
+
+    /**
+     * Checks if the search request has multiple criteria that would benefit from advanced search.
+     */
+    private boolean hasMultipleCriteria(TaskSearchRequest searchRequest) {
+        int criteriaCount = 0;
+        if (searchRequest.getSearchTerm() != null && !searchRequest.getSearchTerm().trim().isEmpty()) {
+            criteriaCount++;
+        }
+        if (searchRequest.getStatus() != null) {
+            criteriaCount++;
+        }
+        if (searchRequest.getPriority() != null) {
+            criteriaCount++;
+        }
+        if (searchRequest.getDueDateFrom() != null) {
+            criteriaCount++;
+        }
+        if (searchRequest.getDueDateTo() != null) {
+            criteriaCount++;
+        }
+        return criteriaCount >= 2;
     }
 
     /**
@@ -205,12 +232,12 @@ public class TaskService {
      */
     @Transactional(readOnly = true)
     public Page<TaskResponse> getAllTasks(int page, int size) {
-        logger.debug("Retrieving all tasks: page={}, size={}", page, size);
+        logDebug("Retrieving all tasks: page={}, size={}", page, size);
         
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
         Page<Task> tasks = taskRepository.findAll(pageable);
         
-        return tasks.map(this::convertToResponse);
+        return taskConverter.convertToResponsePage(tasks);
     }
 
     /**
@@ -220,12 +247,10 @@ public class TaskService {
      */
     @Transactional(readOnly = true)
     public List<TaskResponse> getOverdueTasks() {
-        logger.debug("Retrieving overdue tasks");
+        logDebug("Retrieving overdue tasks");
         
         List<Task> overdueTasks = taskRepository.findOverdueTasks(LocalDate.now());
-        return overdueTasks.stream()
-                .map(this::convertToResponse)
-                .collect(Collectors.toList());
+        return taskConverter.convertToResponseList(overdueTasks);
     }
 
     /**
@@ -236,7 +261,7 @@ public class TaskService {
      */
     @CacheEvict(value = "tasks", key = "#id")
     public Optional<TaskResponse> completeTask(Long id) {
-        logger.debug("Completing task: ID={}", id);
+        logDebug("Completing task: ID={}", id);
 
         return taskRepository.findById(id)
                 .map(task -> {
@@ -246,10 +271,8 @@ public class TaskService {
                     Task savedTask = taskRepository.save(task);
                     eventPublisher.publishEvent(new TaskCompletedEvent(savedTask));
 
-                    if (logger.isInfoEnabled()) {
-                        logger.info("Task completed successfully: ID={}, Title='{}'", savedTask.getId(), savedTask.getTitle());
-                    }
-                    return convertToResponse(savedTask);
+                    logInfo("Task completed successfully: ID={}, Title='{}'", savedTask.getId(), savedTask.getTitle());
+                    return taskConverter.convertToResponse(savedTask);
                 });
     }
 
@@ -260,7 +283,7 @@ public class TaskService {
      */
     @Transactional(readOnly = true)
     public long getTaskCountByStatus(Status status) {
-        logger.debug("Getting task count by status: {}", status);
+        logDebug("Getting task count by status: {}", status);
         return taskRepository.countByStatus(status);
     }
 
@@ -271,32 +294,10 @@ public class TaskService {
      */
     @Transactional(readOnly = true)
     public long getTaskCountByPriority(Priority priority) {
-        logger.debug("Getting task count by priority: {}", priority);
+        logDebug("Getting task count by priority: {}", priority);
         return taskRepository.countByPriority(priority);
     }
 
-    /**
-     * Converts a Task entity to TaskResponse DTO.
-     *
-     * @param task the task entity
-     * @return the task response DTO
-     */
-    private TaskResponse convertToResponse(Task task) {
-        TaskResponse response = new TaskResponse();
-        response.setId(task.getId());
-        response.setTitle(task.getTitle());
-        response.setDescription(task.getDescription());
-        response.setPriority(task.getPriority());
-        response.setStatus(task.getStatus());
-        response.setDueDate(task.getDueDate());
-        response.setCompletedAt(task.getCompletedAt());
-        response.setNotes(task.getNotes());
-        response.setCreatedAt(task.getCreatedAt());
-        response.setUpdatedAt(task.getUpdatedAt());
-        response.setOverdue(task.isOverdue());
-        
-        return response;
-    }
 
     /**
      * Bulk create tasks.
@@ -305,12 +306,10 @@ public class TaskService {
      * @return list of created task responses
      */
     public List<TaskResponse> bulkCreateTasks(List<TaskRequest> taskRequests) {
-        if (logger.isDebugEnabled()) {
-            logger.debug("Bulk creating {} tasks", taskRequests.size());
-        }
+        logDebug("Bulk creating {} tasks", taskRequests.size());
         
         List<Task> tasks = taskRequests.stream()
-            .map(this::convertToEntity)
+            .map(taskConverter::convertToEntity)
             .collect(Collectors.toList());
         
         List<Task> savedTasks = taskRepository.saveAll(tasks);
@@ -320,51 +319,48 @@ public class TaskService {
             eventPublisher.publishEvent(new TaskCreatedEvent(task));
         });
         
-        return savedTasks.stream()
-            .map(this::convertToResponse)
-            .collect(Collectors.toList());
+        return taskConverter.convertToResponseList(savedTasks);
     }
 
     /**
-     * Bulk update task status.
+     * Bulk update task status using optimized repository method.
      *
      * @param taskIds list of task IDs
      * @param status new status
      * @return number of updated tasks
      */
+    @CacheEvict(value = "tasks", allEntries = true)
     public int bulkUpdateTaskStatus(List<Long> taskIds, Status status) {
-        if (logger.isDebugEnabled()) {
-            logger.debug("Bulk updating {} tasks to status: {}", taskIds.size(), status);
+        logDebug("Bulk updating {} tasks to status: {}", taskIds.size(), status);
+        
+        if (taskIds.isEmpty()) {
+            return 0;
         }
         
-        int updatedCount = 0;
-        for (Long taskId : taskIds) {
-            Optional<Task> taskOpt = taskRepository.findById(taskId);
-            if (taskOpt.isPresent()) {
-                Task task = taskOpt.get();
-                task.setStatus(status);
-                taskRepository.save(task);
-                eventPublisher.publishEvent(new TaskUpdatedEvent(task));
-                updatedCount++;
-            }
-        }
+        int updatedCount = taskRepository.bulkUpdateTaskStatus(taskIds, status, LocalDateTime.now());
         
+        logInfo("Bulk update completed: {} tasks updated to status {}", updatedCount, status);
         return updatedCount;
     }
 
     /**
-     * Bulk delete tasks.
+     * Bulk delete tasks using optimized repository method.
      *
      * @param taskIds list of task IDs
+     * @return number of deleted tasks
      */
-    public void bulkDeleteTasks(List<Long> taskIds) {
-        if (logger.isDebugEnabled()) {
-            logger.debug("Bulk deleting {} tasks", taskIds.size());
+    @CacheEvict(value = "tasks", allEntries = true)
+    public int bulkDeleteTasks(List<Long> taskIds) {
+        logDebug("Bulk deleting {} tasks", taskIds.size());
+        
+        if (taskIds.isEmpty()) {
+            return 0;
         }
         
-        for (Long taskId : taskIds) {
-            taskRepository.deleteById(taskId);
-        }
+        int deletedCount = taskRepository.bulkDeleteTasks(taskIds);
+        
+        logInfo("Bulk delete completed: {} tasks deleted", deletedCount);
+        return deletedCount;
     }
 
     /**
@@ -374,9 +370,7 @@ public class TaskService {
      * @return list of completed task responses
      */
     public List<TaskResponse> bulkCompleteTasks(List<Long> taskIds) {
-        if (logger.isDebugEnabled()) {
-            logger.debug("Bulk completing {} tasks", taskIds.size());
-        }
+        logDebug("Bulk completing {} tasks", taskIds.size());
         
         List<TaskResponse> completedTasks = new ArrayList<>();
         for (Long taskId : taskIds) {
@@ -387,7 +381,7 @@ public class TaskService {
                 task.setCompletedAt(LocalDateTime.now());
                 Task savedTask = taskRepository.save(task);
                 eventPublisher.publishEvent(new TaskCompletedEvent(savedTask));
-                completedTasks.add(convertToResponse(savedTask));
+                completedTasks.add(taskConverter.convertToResponse(savedTask));
             }
         }
         
@@ -401,9 +395,7 @@ public class TaskService {
      * @return the duplicated task response
      */
     public TaskResponse duplicateTask(Long taskId) {
-        if (logger.isDebugEnabled()) {
-            logger.debug("Duplicating task with ID: {}", taskId);
-        }
+        logDebug("Duplicating task with ID: {}", taskId);
         
         Task originalTask = taskRepository.findById(taskId)
             .orElseThrow(() -> new TaskNotFoundException("Task not found with id: " + taskId));
@@ -419,7 +411,7 @@ public class TaskService {
         Task savedTask = taskRepository.save(duplicatedTask);
         eventPublisher.publishEvent(new TaskCreatedEvent(savedTask));
         
-        return convertToResponse(savedTask);
+        return taskConverter.convertToResponse(savedTask);
     }
 
 
@@ -427,20 +419,4 @@ public class TaskService {
 
 
 
-    /**
-     * Converts TaskRequest to Task entity.
-     *
-     * @param request the task request
-     * @return the task entity
-     */
-    private Task convertToEntity(TaskRequest request) {
-        Task task = new Task();
-        task.setTitle(request.getTitle());
-        task.setDescription(request.getDescription());
-        task.setPriority(request.getPriority());
-        task.setStatus(request.getStatus());
-        task.setDueDate(request.getDueDate());
-        task.setNotes(request.getNotes());
-        return task;
-    }
 }

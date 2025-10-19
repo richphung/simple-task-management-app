@@ -1,9 +1,9 @@
 package com.example.taskmanagement.controller;
 
+import com.example.taskmanagement.dto.ApiResponse;
+
 import com.example.taskmanagement.entity.TaskAudit;
 import com.example.taskmanagement.repository.TaskAuditRepository;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -25,9 +25,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/audit")
 @CrossOrigin(origins = "*")
-public class AuditController {
-
-    private static final Logger logger = LoggerFactory.getLogger(AuditController.class);
+public class AuditController extends BaseController {
 
     @Autowired
     private TaskAuditRepository taskAuditRepository;
@@ -41,15 +39,17 @@ public class AuditController {
      * @return page of audit records for the task
      */
     @GetMapping("/task/{taskId}")
-    public ResponseEntity<Page<TaskAudit>> getTaskAuditHistory(
+    public ResponseEntity<ApiResponse<Page<TaskAudit>>> getTaskAuditHistory(
             @PathVariable Long taskId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
         
+        logDebug("Fetching audit history for task ID: {}, page: {}, size: {}", taskId, page, size);
+        
         Pageable pageable = PageRequest.of(page, size, Sort.by("changeTimestamp").descending());
         Page<TaskAudit> auditPage = taskAuditRepository.findByTaskIdOrderByChangeTimestampDesc(taskId, pageable);
         
-        return ResponseEntity.ok(auditPage);
+        return handleSuccess(auditPage);
     }
 
     /**
@@ -61,15 +61,17 @@ public class AuditController {
      * @return page of audit records for the action
      */
     @GetMapping("/action/{action}")
-    public ResponseEntity<Page<TaskAudit>> getAuditByAction(
+    public ResponseEntity<ApiResponse<Page<TaskAudit>>> getAuditByAction(
             @PathVariable String action,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
         
+        logDebug("Fetching audit records by action: {}, page: {}, size: {}", action, page, size);
+        
         Pageable pageable = PageRequest.of(page, size, Sort.by("changeTimestamp").descending());
         Page<TaskAudit> auditPage = taskAuditRepository.findByActionOrderByChangeTimestampDesc(action, pageable);
         
-        return ResponseEntity.ok(auditPage);
+        return handleSuccess(auditPage);
     }
 
     /**
@@ -82,17 +84,19 @@ public class AuditController {
      * @return page of audit records within the date range
      */
     @GetMapping("/date-range")
-    public ResponseEntity<Page<TaskAudit>> getAuditByDateRange(
+    public ResponseEntity<ApiResponse<Page<TaskAudit>>> getAuditByDateRange(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDate,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDate,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
         
+        logDebug("Fetching audit records by date range: {} to {}", startDate, endDate);
+        
         Pageable pageable = PageRequest.of(page, size, Sort.by("changeTimestamp").descending());
         Page<TaskAudit> auditPage = taskAuditRepository.findByChangeTimestampBetweenOrderByChangeTimestampDesc(
                 startDate, endDate, pageable);
         
-        return ResponseEntity.ok(auditPage);
+        return handleSuccess(auditPage);
     }
 
     /**
@@ -103,14 +107,16 @@ public class AuditController {
      * @return list of recent audit records
      */
     @GetMapping("/task/{taskId}/recent")
-    public ResponseEntity<List<TaskAudit>> getRecentTaskAudit(
+    public ResponseEntity<ApiResponse<List<TaskAudit>>> getRecentTaskAudit(
             @PathVariable Long taskId,
             @RequestParam(defaultValue = "5") int limit) {
+        
+        logDebug("Fetching recent audit records for task ID: {}, limit: {}", taskId, limit);
         
         Pageable pageable = PageRequest.of(0, limit, Sort.by("changeTimestamp").descending());
         List<TaskAudit> recentAudits = taskAuditRepository.findRecentByTaskId(taskId, pageable);
         
-        return ResponseEntity.ok(recentAudits);
+        return handleSuccess(recentAudits);
     }
 
     /**
@@ -120,14 +126,16 @@ public class AuditController {
      * @return audit statistics
      */
     @GetMapping("/task/{taskId}/statistics")
-    public ResponseEntity<Map<String, Object>> getTaskAuditStatistics(@PathVariable Long taskId) {
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getTaskAuditStatistics(@PathVariable Long taskId) {
+        logDebug("Fetching audit statistics for task ID: {}", taskId);
+        
         Object[] stats = taskAuditRepository.getAuditStatisticsForTask(taskId);
         
         Map<String, Object> statistics = new HashMap<>();
         statistics.put("totalChanges", stats[0]);
         statistics.put("lastChangeTimestamp", stats[1]);
         
-        return ResponseEntity.ok(statistics);
+        return handleSuccess(statistics);
     }
 
     /**
@@ -139,15 +147,17 @@ public class AuditController {
      * @return page of audit records for the user
      */
     @GetMapping("/user/{changedBy}")
-    public ResponseEntity<Page<TaskAudit>> getAuditByUser(
+    public ResponseEntity<ApiResponse<Page<TaskAudit>>> getAuditByUser(
             @PathVariable String changedBy,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
         
+        logDebug("Fetching audit records by user: {}, page: {}, size: {}", changedBy, page, size);
+        
         Pageable pageable = PageRequest.of(page, size, Sort.by("changeTimestamp").descending());
         Page<TaskAudit> auditPage = taskAuditRepository.findByChangedByOrderByChangeTimestampDesc(changedBy, pageable);
         
-        return ResponseEntity.ok(auditPage);
+        return handleSuccess(auditPage);
     }
 
     /**
@@ -156,7 +166,9 @@ public class AuditController {
      * @return audit summary
      */
     @GetMapping("/summary")
-    public ResponseEntity<Map<String, Object>> getAuditSummary() {
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getAuditSummary() {
+        logDebug("Fetching audit summary statistics");
+        
         Map<String, Object> summary = new HashMap<>();
         
         summary.put("totalCreated", taskAuditRepository.countByAction("CREATED"));
@@ -164,7 +176,7 @@ public class AuditController {
         summary.put("totalCompleted", taskAuditRepository.countByAction("COMPLETED"));
         summary.put("totalDeleted", taskAuditRepository.countByAction("DELETED"));
         
-        return ResponseEntity.ok(summary);
+        return handleSuccess(summary);
     }
 
     /**
@@ -174,18 +186,16 @@ public class AuditController {
      * @return a list of {@link TaskAudit} records
      */
     @GetMapping("/tasks/{taskId}")
-    public ResponseEntity<List<TaskAudit>> getAuditHistoryForTask(@PathVariable Long taskId) {
-        if (logger.isDebugEnabled()) {
-            logger.debug("Fetching audit history for task ID: {}", taskId);
-        }
+    public ResponseEntity<ApiResponse<List<TaskAudit>>> getAuditHistoryForTask(@PathVariable Long taskId) {
+        logDebug("Fetching audit history for task ID: {}", taskId);
+        
         List<TaskAudit> auditRecords = taskAuditRepository.findByTaskIdOrderByChangeTimestampDesc(taskId);
+        
         if (auditRecords.isEmpty()) {
-            if (logger.isInfoEnabled()) {
-                logger.info("No audit records found for task ID: {}", taskId);
-            }
-            return ResponseEntity.notFound().build();
+            logInfo("No audit records found for task ID: {}", taskId);
         }
-        return ResponseEntity.ok(auditRecords);
+        
+        return handleSuccess(auditRecords);
     }
 
     /**
@@ -194,11 +204,11 @@ public class AuditController {
      * @return a list of all {@link TaskAudit} records
      */
     @GetMapping
-    public ResponseEntity<List<TaskAudit>> getAllAuditRecords() {
-        if (logger.isDebugEnabled()) {
-            logger.debug("Fetching all audit records");
-        }
+    public ResponseEntity<ApiResponse<List<TaskAudit>>> getAllAuditRecords() {
+        logDebug("Fetching all audit records");
+        
         List<TaskAudit> auditRecords = taskAuditRepository.findAll();
-        return ResponseEntity.ok(auditRecords);
+        
+        return handleSuccess(auditRecords);
     }
 }

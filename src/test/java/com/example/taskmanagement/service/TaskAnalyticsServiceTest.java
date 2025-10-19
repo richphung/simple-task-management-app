@@ -1,9 +1,11 @@
 package com.example.taskmanagement.service;
 
+import com.example.taskmanagement.constants.TaskConstants;
 import com.example.taskmanagement.entity.Task;
 import com.example.taskmanagement.enums.Priority;
 import com.example.taskmanagement.enums.Status;
 import com.example.taskmanagement.repository.TaskRepository;
+import com.example.taskmanagement.util.TaskStatisticsCalculator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -16,6 +18,7 @@ import org.springframework.data.domain.PageRequest;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -31,6 +34,9 @@ class TaskAnalyticsServiceTest {
 
     @Mock
     private TaskRepository taskRepository;
+
+    @Mock
+    private TaskStatisticsCalculator statisticsCalculator;
 
     @InjectMocks
     private TaskAnalyticsService taskAnalyticsService;
@@ -54,38 +60,55 @@ class TaskAnalyticsServiceTest {
         task3.setCreatedAt(LocalDateTime.now());
     }
 
-    @Test
-    void testGetTaskStatistics() {
-        // Given
-        when(taskRepository.countByStatus(Status.TODO)).thenReturn(1L);
-        when(taskRepository.countByStatus(Status.IN_PROGRESS)).thenReturn(1L);
-        when(taskRepository.countByStatus(Status.COMPLETED)).thenReturn(1L);
-        when(taskRepository.countByStatus(Status.CANCELLED)).thenReturn(0L);
-        when(taskRepository.countByStatus(Status.ON_HOLD)).thenReturn(0L);
+        @Test
+        void testGetTaskStatistics() {
+            // Given
+            List<Task> allTasks = Arrays.asList(task1, task2, task3);
+            
+            Map<String, Object> mockStats = new HashMap<>();
+            mockStats.put("totalTasks", 3L);
+            mockStats.put("completedTasks", 1L);
+            mockStats.put("overdueTasks", 2L);
+            mockStats.put("completionRate", 33.33);
+            mockStats.put("overdueRate", 66.67);
+            
+            Map<Status, Long> statusCountsEnum = new HashMap<>();
+            statusCountsEnum.put(Status.TODO, 1L);
+            statusCountsEnum.put(Status.IN_PROGRESS, 1L);
+            statusCountsEnum.put(Status.COMPLETED, 1L);
+            mockStats.put("statusCounts", statusCountsEnum);
+            
+            Map<Priority, Long> priorityCountsEnum = new HashMap<>();
+            priorityCountsEnum.put(Priority.HIGH, 1L);
+            priorityCountsEnum.put(Priority.MEDIUM, 1L);
+            priorityCountsEnum.put(Priority.LOW, 1L);
+            mockStats.put("priorityCounts", priorityCountsEnum);
 
-        when(taskRepository.countByPriority(Priority.HIGH)).thenReturn(1L);
-        when(taskRepository.countByPriority(Priority.MEDIUM)).thenReturn(1L);
-        when(taskRepository.countByPriority(Priority.LOW)).thenReturn(1L);
-        when(taskRepository.countByPriority(Priority.URGENT)).thenReturn(0L);
+            when(taskRepository.findAll()).thenReturn(allTasks);
+            when(statisticsCalculator.calculateComprehensiveStats(allTasks)).thenReturn(mockStats);
 
-        when(taskRepository.findOverdueTasks(any(LocalDate.class))).thenReturn(Arrays.asList(task1));
-        when(taskRepository.count()).thenReturn(3L);
+            // When
+            Map<String, Object> result = taskAnalyticsService.getTaskStatistics();
 
-        // When
-        Map<String, Object> result = taskAnalyticsService.getTaskStatistics();
+            // Then
+            assertNotNull(result);
+            assertTrue(result.containsKey("statusCounts"));
+            assertTrue(result.containsKey("priorityCounts"));
+            assertTrue(result.containsKey("overdueTasks"));
+            assertTrue(result.containsKey("totalTasks"));
+            assertTrue(result.containsKey("completionRate"));
 
-        // Then
-        assertNotNull(result);
-        assertTrue(result.containsKey("statusCounts"));
-        assertTrue(result.containsKey("priorityCounts"));
-        assertTrue(result.containsKey("overdueCount"));
-        assertTrue(result.containsKey("totalTasks"));
-        assertTrue(result.containsKey("completionRate"));
-
-        assertEquals(3L, result.get("totalTasks"));
-        assertEquals(1L, result.get("overdueCount"));
-        assertEquals(33.33, result.get("completionRate"));
-    }
+            assertEquals(3L, result.get("totalTasks"));
+            assertEquals(2L, result.get("overdueTasks"));
+            assertEquals(33.33, (Double) result.get("completionRate"), 0.01);
+            
+            // Verify that status/priority counts are converted to enum names
+            @SuppressWarnings("unchecked")
+            Map<String, Long> statusCounts = (Map<String, Long>) result.get("statusCounts");
+            assertTrue(statusCounts.containsKey("TODO"));
+            assertTrue(statusCounts.containsKey("IN_PROGRESS"));
+            assertTrue(statusCounts.containsKey("COMPLETED"));
+        }
 
     @Test
     void testGetTaskStatisticsForDateRange() {
@@ -94,8 +117,29 @@ class TaskAnalyticsServiceTest {
         LocalDate endDate = LocalDate.now();
 
         List<Task> tasks = Arrays.asList(task1, task2, task3);
+        
+        Map<Status, Long> statusCountsEnum = new HashMap<>();
+        statusCountsEnum.put(Status.TODO, 1L);
+        statusCountsEnum.put(Status.IN_PROGRESS, 1L);
+        statusCountsEnum.put(Status.COMPLETED, 1L);
+        
+        Map<Priority, Long> priorityCountsEnum = new HashMap<>();
+        priorityCountsEnum.put(Priority.HIGH, 1L);
+        priorityCountsEnum.put(Priority.MEDIUM, 1L);
+        priorityCountsEnum.put(Priority.LOW, 1L);
+        
+        Map<String, Object> mockStats = new HashMap<>();
+        mockStats.put("totalTasks", 3L);
+        mockStats.put("completedTasks", 1L);
+        mockStats.put("overdueTasks", 1L);
+        mockStats.put("completionRate", 33.33);
+        mockStats.put("overdueRate", 33.33);
+        mockStats.put("statusCounts", statusCountsEnum);
+        mockStats.put("priorityCounts", priorityCountsEnum);
+
         when(taskRepository.findTasksCreatedBetween(any(), any(), any(PageRequest.class)))
                 .thenReturn(new PageImpl<>(tasks));
+        when(statisticsCalculator.calculateComprehensiveStats(tasks)).thenReturn(mockStats);
 
         // When
         Map<String, Object> result = taskAnalyticsService.getTaskStatisticsForDateRange(startDate, endDate);
@@ -111,10 +155,30 @@ class TaskAnalyticsServiceTest {
     @Test
     void testGetProductivityMetrics() {
         // Given
-        when(taskRepository.count()).thenReturn(3L);
-        when(taskRepository.countByStatus(Status.COMPLETED)).thenReturn(1L);
+        List<Task> allTasks = Arrays.asList(task1, task2, task3);
+        
+        Map<Status, Long> statusCountsEnum = new HashMap<>();
+        statusCountsEnum.put(Status.TODO, 1L);
+        statusCountsEnum.put(Status.IN_PROGRESS, 1L);
+        statusCountsEnum.put(Status.COMPLETED, 1L);
+        
+        Map<Priority, Long> priorityCountsEnum = new HashMap<>();
+        priorityCountsEnum.put(Priority.HIGH, 1L);
+        priorityCountsEnum.put(Priority.MEDIUM, 1L);
+        priorityCountsEnum.put(Priority.LOW, 1L);
+        
+        Map<String, Object> mockStats = new HashMap<>();
+        mockStats.put("totalTasks", 3L);
+        mockStats.put("completedTasks", 1L);
+        mockStats.put("overdueTasks", 1L);
+        mockStats.put("completionRate", 33.33);
+        mockStats.put("overdueRate", 33.33);
+        mockStats.put("statusCounts", statusCountsEnum);
+        mockStats.put("priorityCounts", priorityCountsEnum);
+
+        when(taskRepository.findAll()).thenReturn(allTasks);
         when(taskRepository.countByStatus(Status.IN_PROGRESS)).thenReturn(1L);
-        when(taskRepository.findOverdueTasks(any(LocalDate.class))).thenReturn(Arrays.asList(task1));
+        when(statisticsCalculator.calculateComprehensiveStats(allTasks)).thenReturn(mockStats);
 
         // When
         Map<String, Object> result = taskAnalyticsService.getProductivityMetrics();
@@ -139,10 +203,19 @@ class TaskAnalyticsServiceTest {
     @Test
     void testGetProductivityMetricsWithZeroTasks() {
         // Given
-        when(taskRepository.count()).thenReturn(0L);
-        when(taskRepository.countByStatus(Status.COMPLETED)).thenReturn(0L);
-        when(taskRepository.countByStatus(Status.IN_PROGRESS)).thenReturn(0L);
-        when(taskRepository.findOverdueTasks(any(LocalDate.class))).thenReturn(Arrays.asList());
+        List<Task> emptyTasks = Arrays.asList();
+        
+        Map<String, Object> mockStats = new HashMap<>();
+        mockStats.put("totalTasks", 0L);
+        mockStats.put("completedTasks", 0L);
+        mockStats.put("overdueTasks", 0L);
+        mockStats.put("completionRate", 0.0);
+        mockStats.put("overdueRate", 0.0);
+        mockStats.put("statusCounts", new HashMap<Status, Long>());
+        mockStats.put("priorityCounts", new HashMap<Priority, Long>());
+
+        when(taskRepository.findAll()).thenReturn(emptyTasks);
+        when(statisticsCalculator.calculateComprehensiveStats(emptyTasks)).thenReturn(mockStats);
 
         // When
         Map<String, Object> result = taskAnalyticsService.getProductivityMetrics();

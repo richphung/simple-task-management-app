@@ -1,5 +1,6 @@
 package com.example.taskmanagement.controller;
 
+import com.example.taskmanagement.dto.ApiResponse;
 import com.example.taskmanagement.service.SmartSuggestionService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -54,15 +55,17 @@ class SuggestionsControllerTest {
         when(suggestionService.generateSuggestions(title)).thenReturn(testSuggestions);
 
         // When
-        ResponseEntity<List<SmartSuggestionService.TaskSuggestion>> response = 
+        ResponseEntity<ApiResponse<List<SmartSuggestionService.TaskSuggestion>>> response = 
                 suggestionsController.getTaskSuggestions(title);
 
         // Then
         assertNotNull(response);
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertNotNull(response.getBody());
-        assertEquals(2, response.getBody().size());
-        assertEquals(testSuggestions, response.getBody());
+        assertTrue(response.getBody().isSuccess());
+        assertNotNull(response.getBody().getData());
+        assertEquals(2, response.getBody().getData().size());
+        assertEquals(testSuggestions, response.getBody().getData());
         
         verify(suggestionService).generateSuggestions(title);
     }
@@ -74,13 +77,16 @@ class SuggestionsControllerTest {
         when(suggestionService.generateSuggestions(title)).thenReturn(Arrays.asList());
 
         // When
-        ResponseEntity<List<SmartSuggestionService.TaskSuggestion>> response = 
+        ResponseEntity<ApiResponse<List<SmartSuggestionService.TaskSuggestion>>> response = 
                 suggestionsController.getTaskSuggestions(title);
 
         // Then
         assertNotNull(response);
-        assertEquals(HttpStatus.NO_CONTENT, response.getStatusCode());
-        assertNull(response.getBody());
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertTrue(response.getBody().isSuccess());
+        assertNotNull(response.getBody().getData());
+        assertTrue(response.getBody().getData().isEmpty());
         
         verify(suggestionService).generateSuggestions(title);
     }
@@ -91,14 +97,16 @@ class SuggestionsControllerTest {
         when(suggestionService.generateSuggestions(null)).thenReturn(testSuggestions);
 
         // When
-        ResponseEntity<List<SmartSuggestionService.TaskSuggestion>> response = 
+        ResponseEntity<ApiResponse<List<SmartSuggestionService.TaskSuggestion>>> response = 
                 suggestionsController.getTaskSuggestions(null);
 
         // Then
         assertNotNull(response);
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertNotNull(response.getBody());
-        assertEquals(2, response.getBody().size());
+        assertTrue(response.getBody().isSuccess());
+        assertNotNull(response.getBody().getData());
+        assertEquals(2, response.getBody().getData().size());
         
         verify(suggestionService).generateSuggestions(null);
     }
@@ -109,14 +117,16 @@ class SuggestionsControllerTest {
         when(suggestionService.generateSuggestions("")).thenReturn(testSuggestions);
 
         // When
-        ResponseEntity<List<SmartSuggestionService.TaskSuggestion>> response = 
+        ResponseEntity<ApiResponse<List<SmartSuggestionService.TaskSuggestion>>> response = 
                 suggestionsController.getTaskSuggestions("");
 
         // Then
         assertNotNull(response);
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertNotNull(response.getBody());
-        assertEquals(2, response.getBody().size());
+        assertTrue(response.getBody().isSuccess());
+        assertNotNull(response.getBody().getData());
+        assertEquals(2, response.getBody().getData().size());
         
         verify(suggestionService).generateSuggestions("");
     }
@@ -128,14 +138,16 @@ class SuggestionsControllerTest {
         when(suggestionService.generateSuggestions(title)).thenReturn(testSuggestions);
 
         // When
-        ResponseEntity<List<SmartSuggestionService.TaskSuggestion>> response = 
+        ResponseEntity<ApiResponse<List<SmartSuggestionService.TaskSuggestion>>> response = 
                 suggestionsController.getTaskSuggestions(title);
 
         // Then
         assertNotNull(response);
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertNotNull(response.getBody());
-        assertEquals(2, response.getBody().size());
+        assertTrue(response.getBody().isSuccess());
+        assertNotNull(response.getBody().getData());
+        assertEquals(2, response.getBody().getData().size());
         
         verify(suggestionService).generateSuggestions(title);
     }
@@ -146,15 +158,17 @@ class SuggestionsControllerTest {
         when(suggestionService.getDefaultSuggestions()).thenReturn(testSuggestions);
 
         // When
-        ResponseEntity<List<SmartSuggestionService.TaskSuggestion>> response = 
+        ResponseEntity<ApiResponse<List<SmartSuggestionService.TaskSuggestion>>> response = 
                 suggestionsController.getDefaultSuggestions();
 
         // Then
         assertNotNull(response);
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertNotNull(response.getBody());
-        assertEquals(2, response.getBody().size());
-        assertEquals(testSuggestions, response.getBody());
+        assertTrue(response.getBody().isSuccess());
+        assertNotNull(response.getBody().getData());
+        assertEquals(2, response.getBody().getData().size());
+        assertEquals(testSuggestions, response.getBody().getData());
         
         verify(suggestionService).getDefaultSuggestions();
     }
@@ -165,14 +179,16 @@ class SuggestionsControllerTest {
         when(suggestionService.getDefaultSuggestions()).thenReturn(Arrays.asList());
 
         // When
-        ResponseEntity<List<SmartSuggestionService.TaskSuggestion>> response = 
+        ResponseEntity<ApiResponse<List<SmartSuggestionService.TaskSuggestion>>> response = 
                 suggestionsController.getDefaultSuggestions();
 
         // Then
         assertNotNull(response);
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertNotNull(response.getBody());
-        assertTrue(response.getBody().isEmpty());
+        assertTrue(response.getBody().isSuccess());
+        assertNotNull(response.getBody().getData());
+        assertTrue(response.getBody().getData().isEmpty());
         
         verify(suggestionService).getDefaultSuggestions();
     }
@@ -184,14 +200,16 @@ class SuggestionsControllerTest {
         when(suggestionService.generateSuggestions(longTitle)).thenReturn(testSuggestions);
 
         // When
-        ResponseEntity<List<SmartSuggestionService.TaskSuggestion>> response = 
+        ResponseEntity<ApiResponse<List<SmartSuggestionService.TaskSuggestion>>> response = 
                 suggestionsController.getTaskSuggestions(longTitle);
 
         // Then
         assertNotNull(response);
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertNotNull(response.getBody());
-        assertEquals(2, response.getBody().size());
+        assertTrue(response.getBody().isSuccess());
+        assertNotNull(response.getBody().getData());
+        assertEquals(2, response.getBody().getData().size());
         
         verify(suggestionService).generateSuggestions(longTitle);
     }
@@ -203,14 +221,16 @@ class SuggestionsControllerTest {
         when(suggestionService.generateSuggestions(titleWithNumbers)).thenReturn(testSuggestions);
 
         // When
-        ResponseEntity<List<SmartSuggestionService.TaskSuggestion>> response = 
+        ResponseEntity<ApiResponse<List<SmartSuggestionService.TaskSuggestion>>> response = 
                 suggestionsController.getTaskSuggestions(titleWithNumbers);
 
         // Then
         assertNotNull(response);
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertNotNull(response.getBody());
-        assertEquals(2, response.getBody().size());
+        assertTrue(response.getBody().isSuccess());
+        assertNotNull(response.getBody().getData());
+        assertEquals(2, response.getBody().getData().size());
         
         verify(suggestionService).generateSuggestions(titleWithNumbers);
     }

@@ -1,17 +1,15 @@
 package com.example.taskmanagement.controller;
 
+import com.example.taskmanagement.dto.ApiResponse;
 import com.example.taskmanagement.dto.TaskRequest;
 import com.example.taskmanagement.dto.TaskResponse;
 import com.example.taskmanagement.dto.TaskSearchRequest;
 import com.example.taskmanagement.exception.TaskNotFoundException;
 import com.example.taskmanagement.service.TaskService;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -26,9 +24,7 @@ import java.util.Objects;
 @RestController
 @RequestMapping("/api/tasks")
 @CrossOrigin(origins = "*")
-public class TaskController {
-
-    private static final Logger logger = LoggerFactory.getLogger(TaskController.class);
+public class TaskController extends BaseController {
 
     private final TaskService taskService;
 
@@ -40,32 +36,28 @@ public class TaskController {
      * Creates a new task.
      *
      * @param taskRequest the task creation request
-     * @return the created task response
+     * @return the created task response wrapped in ApiResponse
      */
     @PostMapping
-    public ResponseEntity<TaskResponse> createTask(@Valid @RequestBody TaskRequest taskRequest) {
-        if (logger.isDebugEnabled()) {
-            logger.debug("Creating new task: {}", taskRequest.getTitle());
-        }
+    public ResponseEntity<ApiResponse<TaskResponse>> createTask(@Valid @RequestBody TaskRequest taskRequest) {
+        logDebug("Creating new task: {}", taskRequest.getTitle());
         
         TaskResponse taskResponse = taskService.createTask(taskRequest);
-        return ResponseEntity.status(HttpStatus.CREATED).body(taskResponse);
+        return handleCreated(taskResponse);
     }
 
     /**
      * Retrieves a task by ID.
      *
      * @param id the task ID
-     * @return the task response if found, 404 otherwise
+     * @return the task response if found wrapped in ApiResponse, 404 otherwise
      */
     @GetMapping("/{id}")
-    public ResponseEntity<TaskResponse> getTaskById(@PathVariable Long id) {
-        if (logger.isDebugEnabled()) {
-            logger.debug("Retrieving task by ID: {}", id);
-        }
+    public ResponseEntity<ApiResponse<TaskResponse>> getTaskById(@PathVariable Long id) {
+        logDebug("Retrieving task by ID: {}", id);
         
         return taskService.getTaskById(id)
-                .map(ResponseEntity::ok)
+                .map(this::handleSuccess)
                 .orElseThrow(() -> new TaskNotFoundException("Task not found with ID: " + id));
     }
 
@@ -73,17 +65,15 @@ public class TaskController {
      * Retrieves all tasks with pagination and sorting.
      *
      * @param pageable pagination and sorting information
-     * @return a page of task responses
+     * @return a page of task responses wrapped in ApiResponse
      */
     @GetMapping
-    public ResponseEntity<Page<TaskResponse>> getAllTasks(
+    public ResponseEntity<ApiResponse<Page<TaskResponse>>> getAllTasks(
             @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
-        if (logger.isDebugEnabled()) {
-            logger.debug("Retrieving all tasks: page={}, size={}", pageable.getPageNumber(), pageable.getPageSize());
-        }
+        logDebug("Retrieving all tasks: page={}, size={}", pageable.getPageNumber(), pageable.getPageSize());
         
         Page<TaskResponse> tasks = taskService.getAllTasks(pageable.getPageNumber(), pageable.getPageSize());
-        return ResponseEntity.ok(tasks);
+        return handleSuccess(tasks);
     }
 
     /**
@@ -91,16 +81,14 @@ public class TaskController {
      *
      * @param id the task ID
      * @param taskRequest the task update request
-     * @return the updated task response if found, 404 otherwise
+     * @return the updated task response if found wrapped in ApiResponse, 404 otherwise
      */
     @PutMapping("/{id}")
-    public ResponseEntity<TaskResponse> updateTask(@PathVariable Long id, @Valid @RequestBody TaskRequest taskRequest) {
-        if (logger.isDebugEnabled()) {
-            logger.debug("Updating task: ID={}", id);
-        }
+    public ResponseEntity<ApiResponse<TaskResponse>> updateTask(@PathVariable Long id, @Valid @RequestBody TaskRequest taskRequest) {
+        logDebug("Updating task: ID={}", id);
         
         return taskService.updateTask(id, taskRequest)
-                .map(ResponseEntity::ok)
+                .map(this::handleSuccess)
                 .orElseThrow(() -> new TaskNotFoundException("Task not found with ID: " + id));
     }
 
@@ -111,13 +99,11 @@ public class TaskController {
      * @return 204 if deleted, 404 if not found
      */
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteTask(@PathVariable Long id) {
-        if (logger.isDebugEnabled()) {
-            logger.debug("Deleting task: ID={}", id);
-        }
+    public ResponseEntity<ApiResponse<Void>> deleteTask(@PathVariable Long id) {
+        logDebug("Deleting task: ID={}", id);
         
         if (taskService.deleteTask(id)) {
-            return ResponseEntity.noContent().build();
+            return handleNoContent();
         } else {
             throw new TaskNotFoundException("Task not found with ID: " + id);
         }
@@ -127,16 +113,14 @@ public class TaskController {
      * Completes a task by setting its status to COMPLETED.
      *
      * @param id the task ID
-     * @return the completed task response if found, 404 otherwise
+     * @return the completed task response if found wrapped in ApiResponse, 404 otherwise
      */
     @PutMapping("/{id}/complete")
-    public ResponseEntity<TaskResponse> completeTask(@PathVariable Long id) {
-        if (logger.isDebugEnabled()) {
-            logger.debug("Completing task: ID={}", id);
-        }
+    public ResponseEntity<ApiResponse<TaskResponse>> completeTask(@PathVariable Long id) {
+        logDebug("Completing task: ID={}", id);
         
         return taskService.completeTask(id)
-                .map(ResponseEntity::ok)
+                .map(this::handleSuccess)
                 .orElseThrow(() -> new TaskNotFoundException("Task not found with ID: " + id));
     }
 
@@ -144,16 +128,14 @@ public class TaskController {
      * Searches for tasks based on various criteria.
      *
      * @param searchRequest the search criteria
-     * @return a page of task responses matching the criteria
+     * @return a page of task responses matching the criteria wrapped in ApiResponse
      */
     @PostMapping("/search")
-    public ResponseEntity<Page<TaskResponse>> searchTasks(@Valid @RequestBody TaskSearchRequest searchRequest) {
-        if (logger.isDebugEnabled()) {
-            logger.debug("Searching tasks with criteria: {}", searchRequest);
-        }
+    public ResponseEntity<ApiResponse<Page<TaskResponse>>> searchTasks(@Valid @RequestBody TaskSearchRequest searchRequest) {
+        logDebug("Searching tasks with criteria: {}", searchRequest);
         
         Page<TaskResponse> tasks = taskService.searchTasks(searchRequest);
-        return ResponseEntity.ok(tasks);
+        return handleSuccess(tasks);
     }
 
     /**
@@ -161,25 +143,17 @@ public class TaskController {
      *
      * @param q the search query
      * @param pageable pagination information
-     * @return a page of task responses matching the query
+     * @return a page of task responses matching the query wrapped in ApiResponse
      */
     @GetMapping("/search/quick")
-    public ResponseEntity<Page<TaskResponse>> quickSearch(
+    public ResponseEntity<ApiResponse<Page<TaskResponse>>> quickSearch(
             @RequestParam String q,
             @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
-        if (logger.isDebugEnabled()) {
-            logger.debug("Quick search for: {}", q);
-        }
+        logDebug("Quick search for: {}", q);
         
-        TaskSearchRequest searchRequest = new TaskSearchRequest();
-        searchRequest.setSearchTerm(q);
-        searchRequest.setPage(pageable.getPageNumber());
-        searchRequest.setSize(pageable.getPageSize());
-        searchRequest.setSortBy(pageable.getSort().iterator().next().getProperty());
-        searchRequest.setSortDirection(pageable.getSort().iterator().next().getDirection().name());
-        
+        TaskSearchRequest searchRequest = buildSearchRequest(q, pageable);
         Page<TaskResponse> tasks = taskService.searchTasks(searchRequest);
-        return ResponseEntity.ok(tasks);
+        return handleSuccess(tasks);
     }
 
     /**
@@ -187,49 +161,37 @@ public class TaskController {
      *
      * @param status the task status
      * @param pageable pagination information
-     * @return a page of task responses with the specified status
+     * @return a page of task responses with the specified status wrapped in ApiResponse
      */
     @GetMapping("/status/{status}")
-    public ResponseEntity<Page<TaskResponse>> getTasksByStatus(
+    public ResponseEntity<ApiResponse<Page<TaskResponse>>> getTasksByStatus(
             @PathVariable String status,
             @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
-        if (logger.isDebugEnabled()) {
-            logger.debug("Getting tasks by status: {}", status);
-        }
+        logDebug("Getting tasks by status: {}", status);
         
-        TaskSearchRequest searchRequest = new TaskSearchRequest();
+        TaskSearchRequest searchRequest = buildSearchRequest(null, pageable);
         searchRequest.setStatus(com.example.taskmanagement.enums.Status.valueOf(status.toUpperCase(Locale.ENGLISH)));
-        searchRequest.setPage(pageable.getPageNumber());
-        searchRequest.setSize(pageable.getPageSize());
-        searchRequest.setSortBy(pageable.getSort().iterator().next().getProperty());
-        searchRequest.setSortDirection(pageable.getSort().iterator().next().getDirection().name());
         
         Page<TaskResponse> tasks = taskService.searchTasks(searchRequest);
-        return ResponseEntity.ok(tasks);
+        return handleSuccess(tasks);
     }
 
     /**
      * Gets overdue tasks.
      *
      * @param pageable pagination information
-     * @return a page of overdue task responses
+     * @return a page of overdue task responses wrapped in ApiResponse
      */
     @GetMapping("/overdue")
-    public ResponseEntity<Page<TaskResponse>> getOverdueTasks(
+    public ResponseEntity<ApiResponse<Page<TaskResponse>>> getOverdueTasks(
             @PageableDefault(size = 10, sort = "dueDate", direction = Sort.Direction.ASC) Pageable pageable) {
-        if (logger.isDebugEnabled()) {
-            logger.debug("Getting overdue tasks");
-        }
+        logDebug("Getting overdue tasks");
         
         // For simplicity, we'll use search with a specific criteria for overdue tasks
         // In a real implementation, you might want a dedicated service method
-        TaskSearchRequest searchRequest = new TaskSearchRequest();
-        searchRequest.setPage(pageable.getPageNumber());
-        searchRequest.setSize(pageable.getPageSize());
-        searchRequest.setSortBy(pageable.getSort().iterator().next().getProperty());
-        searchRequest.setSortDirection(pageable.getSort().iterator().next().getDirection().name());
+        TaskSearchRequest searchRequest = buildSearchRequest(null, pageable);
         
         Page<TaskResponse> tasks = taskService.searchTasks(searchRequest);
-        return ResponseEntity.ok(tasks);
+        return handleSuccess(tasks);
     }
 }

@@ -3,9 +3,10 @@ package com.example.taskmanagement.service;
 import com.example.taskmanagement.dto.TaskResponse;
 import com.example.taskmanagement.entity.Task;
 import com.example.taskmanagement.repository.TaskRepository;
+import com.example.taskmanagement.util.DateUtil;
+import com.example.taskmanagement.util.TaskConverter;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -14,18 +15,14 @@ import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
 import java.nio.charset.StandardCharsets;
-import java.time.format.DateTimeFormatter;
 import java.util.List;
-import java.util.stream.Collectors;
 
 /**
  * Service for exporting task data in various formats.
  * Supports CSV and JSON export formats.
  */
 @Service
-public class ExportService {
-
-    private static final Logger logger = LoggerFactory.getLogger(ExportService.class);
+public class ExportService extends BaseService {
 
     @Autowired
     private TaskRepository taskRepository;
@@ -33,8 +30,11 @@ public class ExportService {
     @Autowired
     private ObjectMapper objectMapper;
 
-    private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
-    private static final DateTimeFormatter DATETIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+    @Autowired
+    private TaskConverter taskConverter;
+
+    @Autowired
+    private DateUtil dateUtil;
 
     /**
      * Export tasks to CSV format.
@@ -53,9 +53,7 @@ public class ExportService {
      */
     public byte[] exportTasksToCsv(String filters) {
         try {
-            if (logger.isDebugEnabled()) {
-                logger.debug("Exporting tasks to CSV with filters: {}", filters);
-            }
+            logDebug("Exporting tasks to CSV with filters: {}", filters);
 
             List<Task> tasks = getAllTasksForExport(filters);
             
@@ -73,9 +71,9 @@ public class ExportService {
                     escapeCsvValue(task.getDescription()),
                     task.getStatus() != null ? task.getStatus().getDisplayName() : "",
                     task.getPriority() != null ? task.getPriority().getDisplayName() : "",
-                    task.getDueDate() != null ? task.getDueDate().format(DATE_FORMATTER) : "",
-                    task.getCreatedAt() != null ? task.getCreatedAt().format(DATETIME_FORMATTER) : "",
-                    task.getUpdatedAt() != null ? task.getUpdatedAt().format(DATETIME_FORMATTER) : "",
+                    dateUtil.formatDate(task.getDueDate()),
+                    dateUtil.formatDateTime(task.getCreatedAt()),
+                    dateUtil.formatDateTime(task.getUpdatedAt()),
                     escapeCsvValue(task.getNotes())
                 ));
             }
@@ -86,7 +84,7 @@ public class ExportService {
             return outputStream.toByteArray();
             
         } catch (IOException e) {
-            logger.error("Failed to export tasks to CSV", e);
+            logError("Failed to export tasks to CSV", e);
             throw new RuntimeException("Failed to export tasks to CSV", e);
         }
     }
@@ -108,19 +106,15 @@ public class ExportService {
      */
     public byte[] exportTasksToJson(String filters) {
         try {
-            if (logger.isDebugEnabled()) {
-                logger.debug("Exporting tasks to JSON with filters: {}", filters);
-            }
+            logDebug("Exporting tasks to JSON with filters: {}", filters);
 
             List<Task> tasks = getAllTasksForExport(filters);
-            List<TaskResponse> taskResponses = tasks.stream()
-                .map(this::convertToTaskResponse)
-                .collect(Collectors.toList());
+            List<TaskResponse> taskResponses = taskConverter.convertToResponseList(tasks);
             
             return objectMapper.writeValueAsBytes(taskResponses);
             
         } catch (Exception e) {
-            logger.error("Failed to export tasks to JSON", e);
+            logError("Failed to export tasks to JSON", e);
             throw new RuntimeException("Failed to export tasks to JSON", e);
         }
     }
@@ -132,9 +126,7 @@ public class ExportService {
      */
     public byte[] exportAnalyticsToJson() {
         try {
-            if (logger.isDebugEnabled()) {
-                logger.debug("Exporting analytics to JSON");
-            }
+            logDebug("Exporting analytics to JSON");
 
             // Get basic statistics
             long totalTasks = taskRepository.count();
@@ -149,12 +141,12 @@ public class ExportService {
             analytics.inProgressTasks = inProgressTasks;
             analytics.todoTasks = todoTasks;
             analytics.completionRate = totalTasks > 0 ? (double) completedTasks / totalTasks * 100 : 0.0;
-            analytics.exportTimestamp = java.time.LocalDateTime.now().format(DATETIME_FORMATTER);
+            analytics.exportTimestamp = dateUtil.getCurrentTimestamp();
             
             return objectMapper.writeValueAsBytes(analytics);
             
         } catch (Exception e) {
-            logger.error("Failed to export analytics to JSON", e);
+            logError("Failed to export analytics to JSON", e);
             throw new RuntimeException("Failed to export analytics to JSON", e);
         }
     }
@@ -171,26 +163,6 @@ public class ExportService {
         return taskRepository.findAll();
     }
 
-    /**
-     * Convert Task entity to TaskResponse DTO.
-     *
-     * @param task the task entity
-     * @return task response DTO
-     */
-    private TaskResponse convertToTaskResponse(Task task) {
-        TaskResponse response = new TaskResponse();
-        response.setId(task.getId());
-        response.setTitle(task.getTitle());
-        response.setDescription(task.getDescription());
-        response.setStatus(task.getStatus());
-        response.setPriority(task.getPriority());
-        response.setDueDate(task.getDueDate());
-        response.setNotes(task.getNotes());
-        response.setCreatedAt(task.getCreatedAt());
-        response.setUpdatedAt(task.getUpdatedAt());
-        response.setOverdue(task.isOverdue());
-        return response;
-    }
 
     /**
      * Escape CSV values to handle commas, quotes, and newlines.
@@ -214,7 +186,10 @@ public class ExportService {
 
     /**
      * Inner class for analytics data structure.
+     * Fields are serialized by Jackson ObjectMapper for JSON export.
      */
+    @SuppressFBWarnings(value = {"URF_UNREAD_PUBLIC_OR_PROTECTED_FIELD", "UWF_UNWRITTEN_PUBLIC_OR_PROTECTED_FIELD"}, 
+                        justification = "Fields are serialized by Jackson ObjectMapper")
     private static class AnalyticsData {
         public long totalTasks;
         public long completedTasks;
@@ -222,13 +197,5 @@ public class ExportService {
         public long todoTasks;
         public double completionRate;
         public String exportTimestamp;
-        
-        // Getters for SpotBugs
-        public long getTotalTasks() { return totalTasks; }
-        public long getCompletedTasks() { return completedTasks; }
-        public long getInProgressTasks() { return inProgressTasks; }
-        public long getTodoTasks() { return todoTasks; }
-        public double getCompletionRate() { return completionRate; }
-        public String getExportTimestamp() { return exportTimestamp; }
     }
 }
