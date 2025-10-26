@@ -2,6 +2,7 @@ package com.example.taskmanagement.dto;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.swagger.v3.oas.annotations.media.Schema;
 import org.springframework.http.HttpStatus;
 
 import java.time.LocalDateTime;
@@ -10,21 +11,27 @@ import java.time.LocalDateTime;
  * Standardized API response wrapper for consistent response format.
  * Provides common response structure across all endpoints.
  */
+@Schema(description = "Standardized API response wrapper for all endpoints")
 public class ApiResponse<T> {
     
+    @Schema(description = "Indicates if the request was successful", example = "true")
     @JsonProperty("success")
     private boolean success;
     
+    @Schema(description = "Response data (type varies by endpoint)")
     @JsonProperty("data")
     private T data;
     
+    @Schema(description = "Additional message or error description", example = "Task created successfully")
     @JsonProperty("message")
     private String message;
     
+    @Schema(description = "Response timestamp", example = "2025-10-19T20:30:00.000")
     @JsonProperty("timestamp")
     @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss.SSS")
     private LocalDateTime timestamp;
     
+    @Schema(description = "HTTP status code", example = "200")
     @JsonProperty("status")
     private int status;
     

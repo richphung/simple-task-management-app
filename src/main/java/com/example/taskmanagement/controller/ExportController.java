@@ -2,6 +2,10 @@ package com.example.taskmanagement.controller;
 
 import com.example.taskmanagement.dto.ApiResponse;
 import com.example.taskmanagement.service.ExportService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
@@ -15,7 +19,13 @@ import java.util.Map;
 /**
  * REST controller for data export functionality.
  * Provides endpoints to export tasks and analytics in various formats.
+ * 
+ * @author Task Management Team
+ * @version 1.0
+ * @since 1.0
  */
+@Tag(name = "Data Export", description = "Export task data and analytics in various formats (CSV, JSON). " +
+        "Download task lists and reports for external analysis and backup purposes.")
 @RestController
 @RequestMapping("/api/export")
 @CrossOrigin(origins = "*")

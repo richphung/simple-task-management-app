@@ -2,6 +2,7 @@ package com.example.taskmanagement.dto;
 
 import com.example.taskmanagement.enums.Priority;
 import com.example.taskmanagement.enums.Status;
+import io.swagger.v3.oas.annotations.media.Schema;
 
 import javax.validation.constraints.Max;
 import javax.validation.constraints.Min;
@@ -11,33 +12,46 @@ import java.time.LocalDate;
  * DTO for task search and filtering requests.
  * Contains pagination and filtering parameters.
  */
+@Schema(description = "Request object for searching and filtering tasks with pagination")
 public class TaskSearchRequest {
 
+    @Schema(description = "Search keyword for title and description", example = "documentation")
     private String searchTerm;
 
+    @Schema(description = "Filter by task status", example = "TODO")
     private Status status;
 
+    @Schema(description = "Filter by task priority", example = "HIGH")
     private Priority priority;
 
+    @Schema(description = "Filter tasks with due date from this date", example = "2025-10-01")
     private LocalDate dueDateFrom;
 
+    @Schema(description = "Filter tasks with due date until this date", example = "2025-10-31")
     private LocalDate dueDateTo;
 
+    @Schema(description = "Filter tasks created from this date", example = "2025-10-01")
     private LocalDate createdFrom;
 
+    @Schema(description = "Filter tasks created until this date", example = "2025-10-31")
     private LocalDate createdTo;
 
+    @Schema(description = "Filter overdue tasks", example = "false")
     private Boolean overdue;
 
+    @Schema(description = "Page number (0-based)", example = "0", minimum = "0")
     @Min(value = 0, message = "Page number must be 0 or greater")
     private int page = 0;
 
+    @Schema(description = "Page size", example = "10", minimum = "1", maximum = "100")
     @Min(value = 1, message = "Page size must be at least 1")
     @Max(value = 100, message = "Page size must not exceed 100")
     private int size = 10;
 
+    @Schema(description = "Sort field", example = "createdAt")
     private String sortBy = "createdAt";
 
+    @Schema(description = "Sort direction", example = "desc", allowableValues = {"asc", "desc"})
     private String sortDirection = "desc";
 
     // Constructors - removed unnecessary default constructor

@@ -5,10 +5,16 @@ import com.example.taskmanagement.dto.TaskRequest;
 import com.example.taskmanagement.dto.TaskResponse;
 import com.example.taskmanagement.enums.Status;
 import com.example.taskmanagement.service.TaskService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import org.springframework.validation.annotation.Validated;
 
 import javax.validation.Valid;
 import javax.validation.constraints.NotEmpty;
@@ -20,10 +26,17 @@ import java.util.Objects;
 /**
  * REST Controller for bulk operations on tasks.
  * Provides endpoints for batch operations, bulk updates, and mass operations.
+ * 
+ * @author Task Management Team
+ * @version 1.0
+ * @since 1.0
  */
+@Tag(name = "Bulk Operations", description = "Efficient batch operations for managing multiple tasks simultaneously. " +
+        "Create, update, complete, or delete multiple tasks in a single request for improved performance.")
 @RestController
 @RequestMapping("/api/tasks/bulk")
 @CrossOrigin(origins = "*")
+@Validated
 public class BulkOperationsController extends BaseController {
 
     private static final Logger logger = LoggerFactory.getLogger(BulkOperationsController.class);
@@ -40,8 +53,15 @@ public class BulkOperationsController extends BaseController {
      * @param taskRequests the list of task creation requests
      * @return a list of created task responses wrapped in ApiResponse
      */
+    @Operation(summary = "Bulk create tasks", description = "Creates multiple tasks in a single batch operation for improved performance.")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Tasks created successfully"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid input")
+    })
     @PostMapping("/create")
-    public ResponseEntity<ApiResponse<List<TaskResponse>>> bulkCreateTasks(@Valid @RequestBody List<TaskRequest> taskRequests) {
+    public ResponseEntity<ApiResponse<List<TaskResponse>>> bulkCreateTasks(
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "List of task creation requests") 
+            @RequestBody @NotNull List<@Valid TaskRequest> taskRequests) {
         if (logger.isDebugEnabled()) {
             int size = (taskRequests != null) ? taskRequests.size() : 0;
             logger.debug("Creating {} tasks in bulk", size);
@@ -63,8 +83,15 @@ public class BulkOperationsController extends BaseController {
      * @param request the bulk status update request
      * @return a response indicating the number of updated tasks wrapped in ApiResponse
      */
+    @Operation(summary = "Bulk update task status", description = "Updates the status of multiple tasks in a single operation.")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Task statuses updated successfully"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid input")
+    })
     @PutMapping("/status")
-    public ResponseEntity<ApiResponse<String>> bulkUpdateTaskStatus(@Valid @RequestBody BulkStatusUpdateRequest request) {
+    public ResponseEntity<ApiResponse<String>> bulkUpdateTaskStatus(
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "Bulk status update request") 
+            @Valid @RequestBody BulkStatusUpdateRequest request) {
         if (logger.isDebugEnabled()) {
             logger.debug("Updating status for {} tasks to {}", request.getTaskIds().size(), request.getStatus());
         }
@@ -99,8 +126,15 @@ public class BulkOperationsController extends BaseController {
      * @param taskIds the list of task IDs to delete
      * @return a response indicating the number of deleted tasks wrapped in ApiResponse
      */
+    @Operation(summary = "Bulk delete tasks", description = "Permanently deletes multiple tasks in a single operation.")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "204", description = "Tasks deleted successfully"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid input")
+    })
     @PostMapping("/delete")
-    public ResponseEntity<ApiResponse<Void>> bulkDeleteTasks(@RequestBody List<Long> taskIds) {
+    public ResponseEntity<ApiResponse<Void>> bulkDeleteTasks(
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "List of task IDs to delete") 
+            @RequestBody List<Long> taskIds) {
         if (logger.isDebugEnabled()) {
             logger.debug("Deleting {} tasks in bulk", taskIds != null ? taskIds.size() : 0);
         }
@@ -121,8 +155,15 @@ public class BulkOperationsController extends BaseController {
      * @param taskIds the list of task IDs to complete
      * @return a response indicating the number of completed tasks wrapped in ApiResponse
      */
+    @Operation(summary = "Bulk complete tasks", description = "Marks multiple tasks as completed in a single operation.")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Tasks completed successfully"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid input")
+    })
     @PutMapping("/complete")
-    public ResponseEntity<ApiResponse<List<TaskResponse>>> bulkCompleteTasks(@RequestBody List<Long> taskIds) {
+    public ResponseEntity<ApiResponse<List<TaskResponse>>> bulkCompleteTasks(
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "List of task IDs to complete") 
+            @RequestBody List<Long> taskIds) {
         if (logger.isDebugEnabled()) {
             logger.debug("Completing {} tasks in bulk", taskIds.size());
         }

@@ -2,6 +2,9 @@ package com.example.taskmanagement.controller;
 
 import com.example.taskmanagement.dto.ApiResponse;
 import com.example.taskmanagement.service.TaskAnalyticsService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -10,7 +13,13 @@ import java.util.Map;
 /**
  * REST Controller for task analytics and reporting.
  * Provides endpoints for productivity metrics, statistics, and insights.
+ * 
+ * @author Task Management Team
+ * @version 1.0
+ * @since 1.0
  */
+@Tag(name = "Analytics & Reporting", description = "Task analytics, statistics, and insights. " +
+        "Get real-time metrics on task completion rates, status distributions, and productivity trends.")
 @RestController
 @RequestMapping("/api/analytics")
 @CrossOrigin(origins = "*")
@@ -27,6 +36,10 @@ public class AnalyticsController extends BaseController {
      *
      * @return a map of status to count wrapped in ApiResponse
      */
+    @Operation(summary = "Get status counts", description = "Retrieves task count distribution by status (TODO, IN_PROGRESS, COMPLETED, CANCELLED).")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Status counts retrieved successfully")
+    })
     @GetMapping("/status-counts")
     public ResponseEntity<ApiResponse<Map<com.example.taskmanagement.enums.Status, Long>>> getTaskCountsByStatus() {
         if (logger.isDebugEnabled()) {
@@ -50,6 +63,10 @@ public class AnalyticsController extends BaseController {
      *
      * @return a map of priority to count wrapped in ApiResponse
      */
+    @Operation(summary = "Get priority counts", description = "Retrieves task count distribution by priority (HIGH, MEDIUM, LOW).")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Priority counts retrieved successfully")
+    })
     @GetMapping("/priority-counts")
     public ResponseEntity<ApiResponse<Map<com.example.taskmanagement.enums.Priority, Long>>> getTaskCountsByPriority() {
         if (logger.isDebugEnabled()) {
@@ -73,6 +90,10 @@ public class AnalyticsController extends BaseController {
      *
      * @return analytics data including status and priority counts wrapped in ApiResponse
      */
+    @Operation(summary = "Get dashboard analytics", description = "Retrieves comprehensive task statistics including counts, completion rates, and distributions.")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Analytics data retrieved successfully")
+    })
     @GetMapping("/dashboard")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getDashboardAnalytics() {
         if (logger.isDebugEnabled()) {

@@ -2,6 +2,10 @@ package com.example.taskmanagement.controller;
 
 import com.example.taskmanagement.dto.ApiResponse;
 import com.example.taskmanagement.service.SmartSuggestionService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -12,7 +16,13 @@ import java.util.Map;
 /**
  * REST controller for smart suggestions functionality.
  * Provides endpoints to get intelligent task suggestions based on patterns.
+ * 
+ * @author Task Management Team
+ * @version 1.0
+ * @since 1.0
  */
+@Tag(name = "Smart Suggestions", description = "AI-powered task suggestions and recommendations. " +
+        "Get intelligent property suggestions based on task title patterns and historical data.")
 @RestController
 @RequestMapping("/api/suggestions")
 @CrossOrigin(origins = "*")

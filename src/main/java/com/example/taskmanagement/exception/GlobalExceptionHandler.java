@@ -1,5 +1,6 @@
 package com.example.taskmanagement.exception;
 
+import com.example.taskmanagement.config.CorrelationIdFilter;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import org.slf4j.Logger;
@@ -14,6 +15,8 @@ import org.springframework.web.context.request.WebRequest;
 import com.fasterxml.jackson.databind.exc.InvalidFormatException;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 
+import javax.validation.ConstraintViolation;
+import javax.validation.ConstraintViolationException;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -27,6 +30,33 @@ import java.util.Map;
 public class GlobalExceptionHandler {
 
     private static final Logger logger = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+
+    /**
+     * Handles rate limit exceeded exceptions.
+     *
+     * @param ex the rate limit exception
+     * @param request the web request
+     * @return a response entity with rate limit error details
+     */
+    @ExceptionHandler(RateLimitExceededException.class)
+    public ResponseEntity<ErrorResponse> handleRateLimitExceeded(
+            RateLimitExceededException ex, WebRequest request) {
+        
+        ErrorResponse errorResponse = new ErrorResponse(
+            "RATE_LIMIT_EXCEEDED",
+            ex.getMessage(),
+            null,
+            LocalDateTime.now(),
+            HttpStatus.TOO_MANY_REQUESTS.value(),
+            CorrelationIdFilter.getCurrentCorrelationId()
+        );
+
+        if (logger.isWarnEnabled()) {
+            logger.warn("Rate limit exceeded: {}", ex.getMessage());
+        }
+
+        return new ResponseEntity<>(errorResponse, HttpStatus.TOO_MANY_REQUESTS);
+    }
 
     /**
      * Handles validation errors from @Valid annotations.
@@ -51,11 +81,48 @@ public class GlobalExceptionHandler {
             "Validation failed",
             errors,
             LocalDateTime.now(),
-            HttpStatus.BAD_REQUEST.value()
+            HttpStatus.BAD_REQUEST.value(),
+            CorrelationIdFilter.getCurrentCorrelationId()
         );
 
         if (logger.isWarnEnabled()) {
             logger.warn("Validation error: {}", errors);
+        }
+
+        return ResponseEntity.badRequest().body(errorResponse);
+    }
+
+    /**
+     * Handles constraint violation exceptions from @Validated method-level validation.
+     *
+     * @param ex the constraint violation exception
+     * @param request the web request
+     * @return a response entity with validation error details
+     */
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ResponseEntity<ErrorResponse> handleConstraintViolationException(
+            ConstraintViolationException ex, WebRequest request) {
+        
+        Map<String, String> errors = new HashMap<>();
+        for (ConstraintViolation<?> violation : ex.getConstraintViolations()) {
+            String propertyPath = violation.getPropertyPath().toString();
+            String message = violation.getMessage();
+            // Extract just the field name (last part of path)
+            String fieldName = propertyPath.substring(propertyPath.lastIndexOf('.') + 1);
+            errors.put(fieldName, message);
+        }
+
+        ErrorResponse errorResponse = new ErrorResponse(
+            "VALIDATION_ERROR",
+            "Validation failed",
+            errors,
+            LocalDateTime.now(),
+            HttpStatus.BAD_REQUEST.value(),
+            CorrelationIdFilter.getCurrentCorrelationId()
+        );
+
+        if (logger.isWarnEnabled()) {
+            logger.warn("Constraint violation: {}", errors);
         }
 
         return ResponseEntity.badRequest().body(errorResponse);
@@ -77,7 +144,8 @@ public class GlobalExceptionHandler {
             ex.getMessage(),
             null,
             LocalDateTime.now(),
-            HttpStatus.NOT_FOUND.value()
+            HttpStatus.NOT_FOUND.value(),
+            CorrelationIdFilter.getCurrentCorrelationId()
         );
 
         if (logger.isWarnEnabled()) {
@@ -103,7 +171,8 @@ public class GlobalExceptionHandler {
             ex.getMessage(),
             null,
             LocalDateTime.now(),
-            HttpStatus.BAD_REQUEST.value()
+            HttpStatus.BAD_REQUEST.value(),
+            CorrelationIdFilter.getCurrentCorrelationId()
         );
 
         if (logger.isWarnEnabled()) {
@@ -129,7 +198,8 @@ public class GlobalExceptionHandler {
             ex.getMessage(),
             null,
             LocalDateTime.now(),
-            HttpStatus.BAD_REQUEST.value()
+            HttpStatus.BAD_REQUEST.value(),
+            CorrelationIdFilter.getCurrentCorrelationId()
         );
 
         if (logger.isWarnEnabled()) {
@@ -159,7 +229,8 @@ public class GlobalExceptionHandler {
             errorMessage,
             null,
             LocalDateTime.now(),
-            HttpStatus.BAD_REQUEST.value()
+            HttpStatus.BAD_REQUEST.value(),
+            CorrelationIdFilter.getCurrentCorrelationId()
         );
         
         if (logger.isWarnEnabled()) {
@@ -198,7 +269,8 @@ public class GlobalExceptionHandler {
             errorMessage,
             null,
             LocalDateTime.now(),
-            HttpStatus.BAD_REQUEST.value()
+            HttpStatus.BAD_REQUEST.value(),
+            CorrelationIdFilter.getCurrentCorrelationId()
         );
         
         if (logger.isWarnEnabled()) {
@@ -224,7 +296,8 @@ public class GlobalExceptionHandler {
             "An unexpected error occurred",
             null,
             LocalDateTime.now(),
-            HttpStatus.INTERNAL_SERVER_ERROR.value()
+            HttpStatus.INTERNAL_SERVER_ERROR.value(),
+            CorrelationIdFilter.getCurrentCorrelationId()
         );
 
         if (logger.isErrorEnabled()) {
@@ -254,12 +327,16 @@ public class GlobalExceptionHandler {
         @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss.SSS")
         private LocalDateTime timestamp;
 
+        @JsonProperty("correlationId")
+        private String correlationId;
+
         public ErrorResponse(String error, String message, Map<String, String> details, LocalDateTime timestamp) {
             this.error = error;
             this.message = message;
             this.details = details != null ? new HashMap<>(details) : null;
             this.timestamp = timestamp;
             this.status = 0; // Will be set by the exception handler
+            this.correlationId = null;
         }
         
         public ErrorResponse(String error, String message, Map<String, String> details, LocalDateTime timestamp, int status) {
@@ -268,6 +345,16 @@ public class GlobalExceptionHandler {
             this.details = details != null ? new HashMap<>(details) : null;
             this.timestamp = timestamp;
             this.status = status;
+            this.correlationId = null;
+        }
+
+        public ErrorResponse(String error, String message, Map<String, String> details, LocalDateTime timestamp, int status, String correlationId) {
+            this.error = error;
+            this.message = message;
+            this.details = details != null ? new HashMap<>(details) : null;
+            this.timestamp = timestamp;
+            this.status = status;
+            this.correlationId = correlationId;
         }
 
         // Getters and setters
@@ -309,6 +396,14 @@ public class GlobalExceptionHandler {
 
         public void setStatus(int status) {
             this.status = status;
+        }
+
+        public String getCorrelationId() {
+            return correlationId;
+        }
+
+        public void setCorrelationId(String correlationId) {
+            this.correlationId = correlationId;
         }
     }
 }

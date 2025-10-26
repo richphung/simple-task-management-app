@@ -4,6 +4,10 @@ import com.example.taskmanagement.dto.TaskResponse;
 import com.example.taskmanagement.dto.ApiResponse;
 import com.example.taskmanagement.exception.TaskNotFoundException;
 import com.example.taskmanagement.service.TaskService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,7 +19,13 @@ import java.util.Optional;
 /**
  * REST Controller for task duplication operations.
  * Provides endpoints for duplicating tasks with smart defaults.
+ * 
+ * @author Task Management Team
+ * @version 1.0
+ * @since 1.0
  */
+@Tag(name = "Task Duplication", description = "Duplicate existing tasks with smart defaults. " +
+        "Create copies of tasks while preserving or modifying specific properties.")
 @RestController
 @RequestMapping("/api/tasks")
 @CrossOrigin(origins = "*")

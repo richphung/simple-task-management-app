@@ -4,6 +4,10 @@ import com.example.taskmanagement.dto.ApiResponse;
 
 import com.example.taskmanagement.entity.TaskAudit;
 import com.example.taskmanagement.repository.TaskAuditRepository;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -21,7 +25,13 @@ import java.util.Map;
 /**
  * REST controller for audit trail functionality.
  * Provides endpoints to view task change history and audit information.
+ * 
+ * @author Task Management Team
+ * @version 1.0
+ * @since 1.0
  */
+@Tag(name = "Audit Trail", description = "Task change history and audit logs. " +
+        "Track all modifications, view audit statistics, and filter audit records by date, action, or task.")
 @RestController
 @RequestMapping("/api/audit")
 @CrossOrigin(origins = "*")

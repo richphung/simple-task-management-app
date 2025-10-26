@@ -2,6 +2,7 @@ package com.example.taskmanagement.dto;
 
 import com.example.taskmanagement.enums.Priority;
 import com.example.taskmanagement.enums.Status;
+import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -10,28 +11,40 @@ import java.time.LocalDateTime;
  * DTO for task response data.
  * Contains all task information including audit fields.
  */
+@Schema(description = "Response object containing complete task information")
 public class TaskResponse {
 
+    @Schema(description = "Unique task identifier", example = "1")
     private Long id;
 
+    @Schema(description = "Task title", example = "Complete project documentation")
     private String title;
 
+    @Schema(description = "Detailed description of the task", example = "Write comprehensive API documentation with examples")
     private String description;
 
+    @Schema(description = "Task priority level", example = "HIGH")
     private Priority priority;
 
+    @Schema(description = "Current task status", example = "TODO")
     private Status status;
 
+    @Schema(description = "Task due date", example = "2025-10-31")
     private LocalDate dueDate;
 
+    @Schema(description = "Completion timestamp", example = "2025-10-25T14:30:00")
     private LocalDateTime completedAt;
 
+    @Schema(description = "Additional notes or comments", example = "Remember to include screenshots")
     private String notes;
 
+    @Schema(description = "Creation timestamp", example = "2025-10-19T10:00:00")
     private LocalDateTime createdAt;
 
+    @Schema(description = "Last update timestamp", example = "2025-10-20T15:45:00")
     private LocalDateTime updatedAt;
 
+    @Schema(description = "Indicates if task is past due date", example = "false")
     private boolean overdue;
 
     // Constructors
